@@ -1,0 +1,64 @@
+export const SETTINGS_KEY = 'settings';
+export const STATE_KEY = 'state';
+export const HISTORY_KEY = 'history';
+export const DECK_KEY = 'deck';
+
+export const SCHEMA_VERSION = 1;
+
+export interface SiteSetting {
+  /** Normalized bare domain, e.g. "youtube.com" (matches the domain and subdomains). */
+  domain: string;
+  /** Per-site daily limit in minutes; null = governed only by the combined budget. */
+  limitMin: number | null;
+  /** Day-passes available per usage day. */
+  passes: number;
+}
+
+export interface Settings {
+  version: number;
+  sites: SiteSetting[];
+  /** Combined "unproductive time" budget across all blocked sites, in minutes. */
+  combinedBudgetMin: number;
+  /** Local hour (0-23) at which the usage day resets. */
+  resetHour: number;
+}
+
+export const DEFAULT_SETTINGS: Settings = {
+  version: SCHEMA_VERSION,
+  sites: [],
+  combinedBudgetMin: 120,
+  resetHour: 5,
+};
+
+export interface OverrideEntry {
+  site: string;
+  ts: number;
+  affirmed: true;
+}
+
+/** Counters for the current usage day. */
+export interface DayState {
+  version: number;
+  /** Epoch ms of the current usage day's start (see dayMath.ts). */
+  dayStart: number;
+  /** Foreground seconds per blocked domain. */
+  perSiteSeconds: Record<string, number>;
+  /** Domains with a spent (still valid) day-pass. */
+  passesActive: Record<string, boolean>;
+  /** Day-passes spent per domain today. */
+  passesUsed: Record<string, number>;
+}
+
+export interface DayRecord {
+  perSite: Record<string, number>;
+  totalSec: number;
+  overrides: OverrideEntry[];
+}
+
+/** Closed usage days, keyed by local date "YYYY-MM-DD" of the day's start. */
+export type History = Record<string, DayRecord>;
+
+export interface DeckState {
+  cycleOrder: number[];
+  position: number;
+}

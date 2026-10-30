@@ -8,9 +8,9 @@
 
 ## 2. Core domain model
 
-- [ ] 2.1 Implement usage-day math (`usageDayStart(now, resetHour)`, `nextReset`) and unit tests covering before/after midnight, exact reset minute, and night-owl attribution; verify tests pass
-- [ ] 2.2 Implement typed storage layer (`settings`, `state`, `history`, `deck`) with lazy day-roll (stale `dayStart` ⇒ meters/passes reset, closed day appended to history) and a storage `version` field; verify unit tests cover fresh install, day roll, and 30-day history pruning
-- [ ] 2.3 Implement exhaustion logic (site exhausted ⇔ site meter >= limit OR combined total >= budget, ignoring sites with active passes) with unit tests for the overlap and exempt cases; verify tests pass
+- [x] 2.1 Implement usage-day math (`usageDayStart(now, resetHour)`, `nextReset`) and unit tests covering before/after midnight, exact reset minute, and night-owl attribution; verify tests pass
+- [x] 2.2 Implement typed storage layer (`settings`, `state`, `history`, `deck`) with lazy day-roll (stale `dayStart` ⇒ meters/passes reset, closed day appended to history) and a storage `version` field; verify unit tests cover fresh install, day roll, and 30-day history pruning
+- [x] 2.3 Implement exhaustion logic (site exhausted ⇔ site meter >= limit OR combined total >= budget, ignoring sites with active passes) with unit tests for the overlap and exempt cases; verify tests pass
 
 ## 3. Settings page
 
