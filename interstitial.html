@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Blocked</title>
+  </head>
+  <body class="ritual">
+    <main id="card">
+      <h1 id="headline">Blocked for today</h1>
+      <p id="sub"></p>
+
+      <blockquote id="quote" aria-live="polite"></blockquote>
+
+      <form id="ceremony" hidden>
+        <div id="confessions" role="group" aria-label="Confirmations"></div>
+        <div class="override-row">
+          <button id="override" type="submit" disabled>Quick Override</button>
+          <div class="timer" aria-hidden="true"><div id="timer-bar"></div></div>
+          <span id="timer-label" aria-live="off"></span>
+        </div>
+        <p id="passes-left"></p>
+      </form>
+
+      <p id="hard-block" hidden>No day-passes left today. This site stays closed until the next reset.</p>
+
+      <div id="escape">
+        <button id="go-back" type="button">Go back</button>
+        <button id="close-tab" type="button">Close tab</button>
+      </div>
+    </main>
+    <script type="module" src="/src/pages/interstitial/main.ts"></script>
+  </body>
+</html>

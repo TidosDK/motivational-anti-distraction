@@ -2,9 +2,9 @@
 
 ## 1. Project scaffolding
 
-- [ ] 1.1 Init npm project with TypeScript, Vite (multi-page: interstitial, options, stats) and a Manifest V3 manifest; verify `npm run build` produces a `dist/` that loads as an unpacked extension in a Chromium browser with the service worker registered (no manifest errors in the extension page)
-- [ ] 1.2 Add Vitest for unit tests and wire `npm test`; verify a trivial test passes
-- [ ] 1.3 Curate ~200 motivational quotes into a bundled TS module; verify count >= 150 and build succeeds
+- [x] 1.1 Init npm project with TypeScript, Vite (multi-page: interstitial, options, stats) and a Manifest V3 manifest; verify `npm run build` produces a `dist/` that loads as an unpacked extension in a Chromium browser with the service worker registered (no manifest errors in the extension page)
+- [x] 1.2 Add Vitest for unit tests and wire `npm test`; verify a trivial test passes
+- [x] 1.3 Curate ~200 motivational quotes into a bundled TS module; verify count >= 150 and build succeeds
 
 ## 2. Core domain model
 

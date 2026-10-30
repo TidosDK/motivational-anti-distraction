@@ -1,0 +1,62 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1a1a1e;
+  --muted: #666670;
+  --line: #d8d8de;
+  --accent: #b3541e;
+  --accent-soft: #f2e2d5;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17171b;
+    --fg: #ececf1;
+    --muted: #9c9ca8;
+    --line: #34343d;
+    --accent: #e07b45;
+    --accent-soft: #3a2c22;
+  }
+}
+body { margin: 0; background: var(--bg); color: var(--fg); }
+.page { max-width: 720px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.1rem; margin-top: 2rem; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--line); }
+input[type="text"], input[type="number"] {
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 0.35rem 0.5rem;
+}
+input[type="number"] { width: 6.5rem; }
+button {
+  background: var(--accent); color: #fff; border: 0; border-radius: 6px;
+  padding: 0.45rem 0.9rem; cursor: pointer; font-size: 0.95rem;
+}
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+label { display: block; margin: 0.6rem 0; }
+label input { margin-left: 0.5rem; }
+form#add-site { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.75rem; }
+.error { color: #c0392b; }
+.hint, #save-status, p#empty-hint { color: var(--muted); font-size: 0.9rem; }
+
+/* Interstitial */
+body.ritual { display: grid; place-items: center; min-height: 100vh; padding: 1rem; }
+#card { max-width: 560px; width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 2rem; }
+#headline { margin-top: 0; }
+#sub { color: var(--muted); }
+blockquote {
+  border-left: 4px solid var(--accent); background: var(--accent-soft);
+  margin: 1.25rem 0; padding: 1rem 1.25rem; border-radius: 0 8px 8px 0;
+  font-size: 1.1rem; line-height: 1.5;
+}
+blockquote cite { display: block; margin-top: 0.5rem; font-style: normal; color: var(--muted); font-size: 0.9rem; }
+#confessions label { display: flex; align-items: baseline; gap: 0.5rem; margin: 0.5rem 0; }
+.override-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 1.25rem; }
+.timer { flex: 1; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+#timer-bar { height: 100%; width: 0; background: var(--accent); transition: width 0.25s linear; }
+#timer-label { min-width: 3rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+#passes-left { color: var(--muted); font-size: 0.9rem; }
+#hard-block { color: var(--accent); font-weight: 600; }
+#escape { margin-top: 1.5rem; display: flex; gap: 0.5rem; }
+#escape button { background: var(--line); color: var(--fg); }

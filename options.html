@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Motivational Anti-Distraction — Settings</title>
+  </head>
+  <body>
+    <main class="page">
+      <h1>Motivational Anti-Distraction</h1>
+
+      <section>
+        <h2>Blocked sites</h2>
+        <table id="site-table">
+          <thead>
+            <tr>
+              <th>Site</th>
+              <th>Daily limit (min)</th>
+              <th>Day-passes</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <p id="empty-hint" hidden>No sites blocked yet. Add one below — e.g. <code>youtube.com</code>.</p>
+        <form id="add-site">
+          <input id="add-domain" type="text" placeholder="e.g. youtube.com" autocomplete="off" spellcheck="false" />
+          <button type="submit">Add site</button>
+          <span id="add-error" class="error" role="alert"></span>
+        </form>
+      </section>
+
+      <section>
+        <h2>Daily rules</h2>
+        <label>Combined unproductive budget (minutes)
+          <input id="combined-budget" type="number" min="1" step="1" />
+        </label>
+        <label>Daily reset hour (0–23, local time)
+          <input id="reset-hour" type="number" min="0" max="23" step="1" />
+        </label>
+        <p class="hint">The usage day runs from the reset hour to the next one, so a 05:00 reset keeps late-night sessions on the day they started.</p>
+      </section>
+
+      <p id="save-status" aria-live="polite"></p>
+    </main>
+    <script type="module" src="/src/pages/options/main.ts"></script>
+  </body>
+</html>
