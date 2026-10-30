@@ -5,12 +5,14 @@ import {
   HISTORY_KEY,
   SCHEMA_VERSION,
   SETTINGS_KEY,
+  SESSION_KEY,
   STATE_KEY,
   type DayRecord,
   type DayState,
   type DeckState,
   type History,
   type Settings,
+  type ActiveSession,
 } from './types';
 
 /** Minimal storage abstraction so tests can run without the chrome namespace. */
@@ -185,4 +187,22 @@ export async function loadDeck(kv: KV): Promise<DeckState | undefined> {
 
 export function saveDeck(kv: KV, deck: DeckState): Promise<void> {
   return kv.set({ [DECK_KEY]: deck });
+}
+
+/** In-memory focus session persisted across service-worker evictions. */
+export interface StoredSession {
+  session: ActiveSession | null;
+  savedAt: number;
+}
+
+export async function loadActiveSession(kv: KV): Promise<StoredSession | undefined> {
+  return rawGet<StoredSession>(kv, SESSION_KEY);
+}
+
+export function saveActiveSession(
+  kv: KV,
+  session: StoredSession['session'],
+  savedAt: number,
+): Promise<void> {
+  return kv.set({ [SESSION_KEY]: { session, savedAt } });
 }

@@ -14,7 +14,7 @@ export default defineConfig({
       input: resolve(root, 'src/background/index.ts'),
       output: {
         entryFileNames: 'background.js',
-        format: 'es',
+        format: 'iife',
         inlineDynamicImports: true,
       },
     },

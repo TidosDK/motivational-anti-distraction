@@ -2,6 +2,7 @@ export const SETTINGS_KEY = 'settings';
 export const STATE_KEY = 'state';
 export const HISTORY_KEY = 'history';
 export const DECK_KEY = 'deck';
+export const SESSION_KEY = 'activeSession';
 
 export const SCHEMA_VERSION = 1;
 
@@ -61,4 +62,12 @@ export type History = Record<string, DayRecord>;
 export interface DeckState {
   cycleOrder: number[];
   position: number;
+}
+
+/** The foreground-tab session currently being counted (background/index.ts). */
+export interface ActiveSession {
+  windowId: number;
+  tabId: number;
+  domain: string;
+  sinceMs: number;
 }

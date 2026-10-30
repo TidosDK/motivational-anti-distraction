@@ -19,8 +19,8 @@
 
 ## 4. Usage tracking
 
-- [ ] 4.1 Implement foreground session accounting in the service worker (`tabs.onActivated`, `tabs.onUpdated`, `windows.onFocusChanged` open/close timestamped sessions for blocked sites only) with unit tests on the pure accounting function; verify tests pass
-- [ ] 4.2 Add 1-minute `chrome.alarms` flush while a blocked site is focused and flush-on-shutdown; verify observable behavior: foreground minutes accrue in `state.perSiteSeconds`, background tabs do not
+- [x] 4.1 Implement foreground session accounting in the service worker (`tabs.onActivated`, `tabs.onUpdated`, `windows.onFocusChanged` open/close timestamped sessions for blocked sites only) with unit tests on the pure accounting function; verify tests pass
+- [x] 4.2 Add 1-minute `chrome.alarms` flush while a blocked site is focused and flush-on-shutdown; verify observable behavior: foreground minutes accrue in `state.perSiteSeconds`, background tabs do not
 
 ## 5. Enforcement
 

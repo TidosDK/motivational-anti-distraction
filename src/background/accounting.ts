@@ -4,18 +4,22 @@
  * transitions are pure so they can be unit-tested without chrome APIs.
  */
 
-export interface ActiveSession {
-  windowId: number;
-  tabId: number;
+import type { ActiveSession } from '../shared/types';
+
+export type { ActiveSession };
+
+/** A wall-clock segment to charge to a domain. */
+export interface Segment {
   domain: string;
-  sinceMs: number;
+  fromMs: number;
+  toMs: number;
 }
 
 /** Seconds to charge to a domain, or null when nothing accrued. */
 export function closeSession(
   session: ActiveSession | null,
   nowMs: number,
-): { domain: string; fromMs: number; toMs: number } | null {
+): Segment | null {
   if (!session) return null;
   if (nowMs <= session.sinceMs) return null;
   return { domain: session.domain, fromMs: session.sinceMs, toMs: nowMs };
@@ -45,7 +49,7 @@ export function switchFocus(
 export function tickSession(
   session: ActiveSession,
   nowMs: number,
-): { accrued: ReturnType<typeof closeSession>; next: ActiveSession } {
+): { accrued: Segment; next: ActiveSession } {
   const accrued = closeSession(session, nowMs);
   return {
     accrued: accrued ?? { domain: session.domain, fromMs: session.sinceMs, toMs: session.sinceMs },
