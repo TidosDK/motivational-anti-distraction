@@ -14,8 +14,8 @@
 
 ## 3. Settings page
 
-- [ ] 3.1 Build options page: add/remove blocked sites by domain, per-site limit minutes (optional) and day-pass count, combined budget, reset hour; persist to settings storage; verify by setting values, reloading the extension, and confirming they survive
-- [ ] 3.2 Normalize and validate domain input (strip URLs/scheme/`www.`, reject invalid); verify with unit tests over sample inputs
+- [x] 3.1 Build options page: add/remove blocked sites by domain, per-site limit minutes (optional) and day-pass count, combined budget, reset hour; persist to settings storage; verify by setting values, reloading the extension, and confirming they survive
+- [x] 3.2 Normalize and validate domain input (strip URLs/scheme/`www.`, reject invalid); verify with unit tests over sample inputs
 
 ## 4. Usage tracking
 
