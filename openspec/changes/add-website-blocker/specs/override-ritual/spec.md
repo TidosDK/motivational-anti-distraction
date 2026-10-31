@@ -45,24 +45,39 @@ version.
 ### Requirement: Per-site day-pass allowance
 Each blocked site SHALL have a user-configurable number of day-passes per
 usage day, defaulting to 1. The interstitial SHALL show how many passes remain
-for that site today.
+for that site today. The user SHALL be able to configure how long a spent
+pass keeps its site open (the "pass session", defaulting to 10 minutes).
 
 #### Scenario: Configure passes
 - **WHEN** the user sets YouTube's day-passes to 3
 - **THEN** up to 3 override ceremonies can unlock YouTube in one usage day
 
 #### Scenario: Last pass spent
-- **WHEN** a site's final remaining day-pass is spent
+- **WHEN** a site's final remaining day-pass is spent and its session ends
 - **THEN** the site stays blocked until the next daily reset and the interstitial offers no override
 
 ### Requirement: Day-pass spend semantics
 Spending a day-pass SHALL apply to exactly one site and grant access to that
-site until the next daily reset. Passes for other sites MUST NOT be affected,
-and unused passes MUST NOT accumulate across days.
+site for a configurable session duration (defaulting to 10 minutes) from the
+moment of spending, ending no later than the next daily reset. Passes for
+other sites MUST NOT be affected, and unused passes MUST NOT accumulate
+across days.
 
 #### Scenario: Pass affects only its site
 - **WHEN** the user spends a day-pass on YouTube while Instagram is also blocked
 - **THEN** YouTube becomes accessible and Instagram remains blocked
+
+#### Scenario: Pass grants a timed session
+- **WHEN** the user spends a pass on YouTube with a 10-minute session and navigates within the session
+- **THEN** YouTube loads, and its usage still accrues toward the combined budget for statistics
+
+#### Scenario: Site re-blocks when the session ends
+- **WHEN** a YouTube pass session has expired and YouTube's budgets are still exhausted and the user navigates to YouTube
+- **THEN** YouTube is redirected to the interstitial again, offering any remaining pass or the hard block
+
+#### Scenario: Session truncated by daily reset
+- **WHEN** a pass session would run past the daily reset time
+- **THEN** the reset clears the session along with all other daily state, and the site starts the new day accessible
 
 #### Scenario: Passes do not carry over
 - **WHEN** the day ends with an unused Instagram pass

@@ -55,14 +55,31 @@ depending on an alarm firing exactly at 05:00; an alarm exists only to update
 dNR rules promptly at the boundary.
 
 ### D5: Storage model (`chrome.storage.local`)
-- `settings`: `{ sites: [{ domain, limitMin | null, passes: n }], combinedBudgetMin, resetHour }`
-- `state`: `{ dayStart, perSiteSeconds: {domain: s}, passesActive: {domain: true}, passesUsed: {domain: n} }` — keyed to `dayStart`; on read, if `dayStart` is stale, roll to the new day first
+- `settings`: `{ sites: [{ domain, limitMin | null, passes: n }], combinedBudgetMin, resetHour, passSessionMin }`
+- `state`: `{ dayStart, perSiteSeconds: {domain: s}, passesUsed: {domain: n}, passesUntil: {domain: epochMs} }` — keyed to `dayStart`; on read, if `dayStart` is stale, roll to the new day first. A site is pass-exempt while `passesUntil[domain] > now` (absent/elapsed ⇒ not exempt)
 - `history`: `{ "YYYY-MM-DD": { perSite: {...}, totalSec, overrides: [{site, ts, affirmed: true}] } }` (retain 30 days)
 - `deck`: `{ cycleOrder: number[], position: n }`
 
 ### D6: Quote deck
 ~200 quotes bundled as a TS module. Shuffle-cycling: on exhaustion of the
 cycle, reshuffle; persist `{cycleOrder, position}` so restarts don't repeat.
+
+### D7: Day-passes grant a timed session (revised after manual testing)
+Original v1 let one pass open a site for the entire usage day, which manual
+testing showed is far more generous than the friction this tool exists to
+create. A spent pass now sets `passesUntil[domain] = min(now + passSessionMin,
+nextReset)`; exhaustion treats a site as exempt only while that timestamp is
+in the future, so the block returns by itself when the session lapses.
+
+Expiry is **lazy**: it is a timestamp compared against `now` at each rule
+recompute, so correctness never depends on an alarm firing on time. A one-shot
+`pass-expire:<domain>` alarm is scheduled at the expiry instant purely to
+refresh dNR rules promptly (otherwise a site whose session ends while idle
+would stay open until the next unrelated state change). It is capped at the
+reset boundary like the pass itself. Spending another pass while one is active
+is a no-op that simply reports the still-open site (no double-spend); the
+second pass is available only after the first session ends. This keeps a
+configurable N passes meaningful within a single day.
 
 ## Risks / Trade-offs
 

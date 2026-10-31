@@ -61,10 +61,11 @@ the previous usage day.
 - **THEN** every site's meter, the combined budget, and all day-pass counts start fresh, and previously exhausted sites are accessible again
 
 ### Requirement: Usage while exempt
-While a day-pass exempts a site, the system SHALL continue to record usage of
-that site for statistics, but that usage MUST NOT trigger blocking or
-re-exhaustion of the exempted site until the next daily reset.
+While a day-pass session is active for a site, the system SHALL continue to
+record usage of that site for statistics, but that usage MUST NOT trigger
+blocking or re-exhaustion of that site until the session ends. When the
+session ends (elapsed or reset), normal exhaustion rules apply again.
 
 #### Scenario: Exempt usage tracked but harmless
-- **WHEN** YouTube is open under a day-pass and the user spends 3 hours on it
-- **THEN** 3 hours appear in the day's usage statistics and YouTube stays accessible until reset
+- **WHEN** YouTube is open under an active day-pass session and the user spends the session's full duration on it
+- **THEN** that usage appears in the day's statistics, and YouTube stays accessible until the session ends, at which point it re-blocks if still exhausted

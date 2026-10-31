@@ -26,9 +26,11 @@ autopilot reflex — capped at a fixed amount of unproductive time per day.
   the user has ticked a fixed list of confession checkboxes (e.g. "This is for
   work", "I am NOT slacking off right now!"). All boxes must be checked.
 - Each site has a configurable number of day-passes per day (default 1).
-  Spending a pass opens THAT site until the next daily reset, bypassing both
-  its own meter and the combined budget. Usage keeps being tracked while
-  unblocked. When a site's passes are exhausted, the block is hard until reset.
+  Spending a pass opens THAT site for a short configurable session (default
+  10 minutes), bypassing both its own meter and the combined budget. Usage
+  keeps being tracked during the session; afterwards the site re-blocks if
+  its budgets are still spent. When a site's passes are exhausted, the block
+  is hard until reset.
 - A stats page shows per-site and total daily usage, override/confession
   events, and at least the last 7 days of history.
 
