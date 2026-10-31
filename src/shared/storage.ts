@@ -52,11 +52,15 @@ async function rawGet<T>(kv: KV, key: string): Promise<T | undefined> {
 export async function loadSettings(kv: KV): Promise<Settings> {
   const raw = await rawGet<Partial<Settings>>(kv, SETTINGS_KEY);
   if (!raw) return structuredClone(DEFAULT_SETTINGS);
-  return {
+  const merged: Settings = {
     ...structuredClone(DEFAULT_SETTINGS),
     ...raw,
     sites: Array.isArray(raw.sites) ? raw.sites : [],
   };
+  if (!Number.isFinite(merged.passSessionMin) || merged.passSessionMin < 1) {
+    merged.passSessionMin = DEFAULT_SETTINGS.passSessionMin;
+  }
+  return merged;
 }
 
 export function saveSettings(kv: KV, settings: Settings): Promise<void> {
@@ -68,7 +72,7 @@ export function freshState(dayStart: number): DayState {
     version: SCHEMA_VERSION,
     dayStart,
     perSiteSeconds: {},
-    passesActive: {},
+    passesUntil: {},
     passesUsed: {},
   };
 }
@@ -121,6 +125,10 @@ export async function loadState(kv: KV, settings: Settings, now: number): Promis
   const stored = await rawGet<DayState>(kv, STATE_KEY);
   const current = usageDayStart(now, settings.resetHour);
   let state = stored ?? freshState(current);
+  // Older builds stored passesActive booleans; day-passes are now timed, so
+  // any pre-upgrade pass is treated as already expired.
+  if (!state.passesUntil) state.passesUntil = {};
+  delete (state as Partial<DayState> & { passesActive?: unknown }).passesActive;
   if (state.dayStart !== current) {
     const history = await loadHistory(kv);
     const key = dayKey(state.dayStart);

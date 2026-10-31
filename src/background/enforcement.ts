@@ -2,9 +2,9 @@ import { isSiteExhausted } from '../shared/exhaustion';
 import type { DayState, Settings } from '../shared/types';
 
 /** Domains that must currently be redirected (exhausted, no active pass). */
-export function computeBlockedDomains(settings: Settings, state: DayState): string[] {
+export function computeBlockedDomains(settings: Settings, state: DayState, now: number): string[] {
   return settings.sites
-    .filter((s) => isSiteExhausted(s.domain, state, settings))
+    .filter((s) => isSiteExhausted(s.domain, state, settings, now))
     .map((s) => s.domain)
     .sort();
 }

@@ -12,6 +12,7 @@ const addInput = document.querySelector<HTMLInputElement>('#add-domain')!;
 const addError = document.querySelector<HTMLElement>('#add-error')!;
 const budgetInput = document.querySelector<HTMLInputElement>('#combined-budget')!;
 const resetInput = document.querySelector<HTMLInputElement>('#reset-hour')!;
+const passSessionInput = document.querySelector<HTMLInputElement>('#pass-session')!;
 const saveStatus = document.querySelector<HTMLElement>('#save-status')!;
 
 let statusTimer: ReturnType<typeof setTimeout> | undefined;
@@ -107,6 +108,13 @@ resetInput.value = String(settings.resetHour);
 resetInput.addEventListener('change', () => {
   settings.resetHour = Math.min(23, Math.max(0, Math.round(Number(resetInput.value)) || 0));
   resetInput.value = String(settings.resetHour);
+  void save();
+});
+
+passSessionInput.value = String(settings.passSessionMin);
+passSessionInput.addEventListener('change', () => {
+  settings.passSessionMin = Math.max(1, Math.round(Number(passSessionInput.value)) || 1);
+  passSessionInput.value = String(settings.passSessionMin);
   void save();
 });
 

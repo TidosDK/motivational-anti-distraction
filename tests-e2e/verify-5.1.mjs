@@ -39,7 +39,7 @@ await seed({
     version: 1,
     dayStart,
     perSiteSeconds: { 'example.com': 11 * 60 }, // 11 min of a 10 min limit
-    passesActive: {},
+    passesUntil: {},
     passesUsed: {},
   },
 });
@@ -77,7 +77,7 @@ await sub.close();
 const dayStart2 = dayStart;
 await seed({
   settings,
-  state: { version: 1, dayStart: dayStart2, perSiteSeconds: { 'example.com': 60 }, passesActive: {}, passesUsed: {} },
+  state: { version: 1, dayStart: dayStart2, perSiteSeconds: { 'example.com': 60 }, passesUntil: {}, passesUsed: {} },
 });
 rules = await waitForRules((r) => r.length === 0);
 assert.strictEqual(rules.length, 0, `rule not removed: ${JSON.stringify(rules)}`);

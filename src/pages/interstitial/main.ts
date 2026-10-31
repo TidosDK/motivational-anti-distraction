@@ -29,13 +29,25 @@ if (!domain) {
 } else {
   headline.textContent = `${domain} is blocked for today`;
   const status = (await chrome.runtime.sendMessage({ type: 'siteStatus', domain })) as
-    | { known: boolean; exhausted?: boolean; passesTotal?: number; passesUsed?: number; passesActive?: boolean }
+    | {
+        known: boolean;
+        exhausted?: boolean;
+        passesTotal?: number;
+        passesUsed?: number;
+        passesActive?: boolean;
+        passExpiresAt?: number | null;
+      }
     | undefined;
 
   if (!status?.known) {
     sub.textContent = 'This site is not in your blocked list.';
   } else if (status.passesActive) {
-    sub.textContent = 'A day-pass is active for this site — opening it now.';
+    const mins = status.passExpiresAt
+      ? Math.max(0, Math.ceil((status.passExpiresAt - Date.now()) / 60_000))
+      : null;
+    sub.textContent = mins != null
+      ? `A day-pass is active for this site (${mins} min left) — opening it now.`
+      : 'A day-pass is active for this site — opening it now.';
     location.replace(`https://${domain}`);
   } else {
     const quote = (await chrome.runtime.sendMessage({ type: 'nextQuote' })) as

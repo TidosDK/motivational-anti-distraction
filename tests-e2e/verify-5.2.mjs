@@ -35,7 +35,7 @@ await seed({
     version: 1,
     dayStart: dayStartTime(),
     perSiteSeconds: { 'example.com': 11 * 60, 'example.org': 11 * 60 },
-    passesActive: {},
+    passesUntil: {},
     passesUsed: {},
   },
 });
@@ -71,7 +71,7 @@ await seed({
     version: 1,
     dayStart: yesterday,
     perSiteSeconds: { 'example.com': 11 * 60, 'example.org': 11 * 60 },
-    passesActive: { 'example.com': true },
+    passesUntil: { 'example.com': Date.now() + 10 * 60 * 1000 }, // active pass
     passesUsed: { 'example.com': 1 },
   },
 });
@@ -81,7 +81,7 @@ await waitFor(async () => {
 }, 'state did not roll to the new usage day');
 
 const rolled = await readStorage(['state']);
-assert.deepStrictEqual(rolled.state.passesActive, {}, 'pass survived the day roll');
+assert.deepStrictEqual(rolled.state.passesUntil, {}, 'pass survived the day roll');
 assert.deepStrictEqual(rolled.state.passesUsed, {}, 'pass counter survived the day roll');
 
 // Re-exhaust example.com on the new day: with the pass expired it must block.
@@ -91,7 +91,7 @@ await seed({
     version: 1,
     dayStart: dayStartTime(),
     perSiteSeconds: { 'example.com': 11 * 60, 'example.org': 11 * 60 },
-    passesActive: {},
+    passesUntil: {},
     passesUsed: {},
   },
 });

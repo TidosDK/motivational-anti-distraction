@@ -22,6 +22,8 @@ export interface Settings {
   combinedBudgetMin: number;
   /** Local hour (0-23) at which the usage day resets. */
   resetHour: number;
+  /** How long a spent day-pass keeps its site open, in minutes. */
+  passSessionMin: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -29,6 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sites: [],
   combinedBudgetMin: 120,
   resetHour: 5,
+  passSessionMin: 10,
 };
 
 export interface OverrideEntry {
@@ -44,8 +47,8 @@ export interface DayState {
   dayStart: number;
   /** Foreground seconds per blocked domain. */
   perSiteSeconds: Record<string, number>;
-  /** Domains with a spent (still valid) day-pass. */
-  passesActive: Record<string, boolean>;
+  /** Domains currently exempt via a spent pass: expiry epoch-ms. */
+  passesUntil: Record<string, number>;
   /** Day-passes spent per domain today. */
   passesUsed: Record<string, number>;
 }

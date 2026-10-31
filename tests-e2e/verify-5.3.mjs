@@ -48,7 +48,7 @@ await seed({
     version: 1,
     dayStart: dayStartTime(),
     perSiteSeconds: { 'example.com': 11 * 60 },
-    passesActive: {},
+    passesUntil: {},
     passesUsed: {},
   },
 });

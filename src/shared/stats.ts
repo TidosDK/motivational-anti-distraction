@@ -66,7 +66,7 @@ export function buildStatsView(
       fraction: s.limitMin ? Math.min(1, usedSec / (s.limitMin * 60)) : null,
       passesUsed: state.passesUsed[s.domain] ?? 0,
       passesTotal: s.passes,
-      passActive: state.passesActive[s.domain] === true,
+      passActive: (state.passesUntil[s.domain] ?? 0) > now,
     };
   });
 

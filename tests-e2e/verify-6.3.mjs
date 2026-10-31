@@ -29,7 +29,7 @@ const exhausted = {
   version: 1,
   dayStart: dayStartTime(),
   perSiteSeconds: { 'example.com': 11 * 60 },
-  passesActive: {},
+  passesUntil: {},
   passesUsed: {},
 };
 async function waitRules(count) {
@@ -72,9 +72,9 @@ await tab.click('#override');
 await tab.waitForFunction(() => location.href.startsWith('https://example.com'), null, { timeout: 10_000 });
 assert.ok(!tab.url().includes('interstitial'), `not on the real site: ${tab.url()}`);
 
-// The pass is spent and recorded, and only this site unblocked.
+// The pass is spent and recorded (as a timed session), and the site is unblocked.
 const s = await readStorage(['state', 'history']);
-assert.strictEqual(s.state.passesActive['example.com'], true, 'pass not active');
+assert.ok((s.state.passesUntil['example.com'] ?? 0) > Date.now(), 'pass session not active');
 assert.strictEqual(s.state.passesUsed['example.com'], 1, 'pass not counted');
 const ov = s.history?.[todayKey()]?.overrides ?? [];
 assert.strictEqual(ov.length, 1, 'override not recorded in history');

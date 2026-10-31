@@ -3,6 +3,7 @@ import { computeBlockedDomains, diffRules, regexFilterFor } from './enforcement'
 import type { DayState, Settings } from '../shared/types';
 
 const MIN = 60;
+const NOW = 1_790_000_000_000; // fixed clock for deterministic pass expiry
 const settings: Settings = {
   version: 1,
   sites: [
@@ -11,34 +12,43 @@ const settings: Settings = {
   ],
   combinedBudgetMin: 120,
   resetHour: 5,
+  passSessionMin: 10,
 };
 const state = (over: Partial<DayState> = {}): DayState => ({
   version: 1,
   dayStart: 0,
   perSiteSeconds: {},
-  passesActive: {},
+  passesUntil: {},
   passesUsed: {},
   ...over,
 });
 
 describe('computeBlockedDomains', () => {
   it('nothing blocked when meters have room', () => {
-    expect(computeBlockedDomains(settings, state())).toEqual([]);
+    expect(computeBlockedDomains(settings, state(), NOW)).toEqual([]);
   });
 
   it('blocked domains appear sorted once exhausted', () => {
     const s = state({
       perSiteSeconds: { 'youtube.com': 61, 'instagram.com': 31 * MIN },
     });
-    expect(computeBlockedDomains(settings, s)).toEqual(['instagram.com', 'youtube.com']);
+    expect(computeBlockedDomains(settings, s, NOW)).toEqual(['instagram.com', 'youtube.com']);
   });
 
-  it('a spent day-pass removes only its own site from the rule set', () => {
+  it('an unexpired pass removes only its own site from the rule set', () => {
     const s = state({
       perSiteSeconds: { 'youtube.com': 61, 'instagram.com': 31 * MIN },
-      passesActive: { 'youtube.com': true },
+      passesUntil: { 'youtube.com': NOW + 60_000 },
     });
-    expect(computeBlockedDomains(settings, s)).toEqual(['instagram.com']);
+    expect(computeBlockedDomains(settings, s, NOW)).toEqual(['instagram.com']);
+  });
+
+  it('an expired pass lets its site back into the rule set', () => {
+    const s = state({
+      perSiteSeconds: { 'youtube.com': 61, 'instagram.com': 31 * MIN },
+      passesUntil: { 'youtube.com': NOW - 1 },
+    });
+    expect(computeBlockedDomains(settings, s, NOW)).toEqual(['instagram.com', 'youtube.com']);
   });
 });
 

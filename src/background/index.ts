@@ -6,9 +6,12 @@ import { QUOTES } from '../shared/quotes';
 import { nextQuote } from '../shared/deck';
 import { closeSession, switchFocus, tickSession, type ActiveSession, type Segment } from './accounting';
 import { computeBlockedDomains, diffRules, regexFilterFor, type RuleSpec } from './enforcement';
+import { applyPassSpend, isPassActive, isSiteExhausted } from '../shared/exhaustion';
 
 const TICK_ALARM = 'usage-tick';
 const ROLL_ALARM = 'day-roll';
+/** One-shot alarms: `pass-expire:<domain>` refreshes rules when a session lapses. */
+const PASS_EXPIRE_PREFIX = 'pass-expire:';
 
 /** The foreground tab session of the focused window (null = nothing counted). */
 let active: ActiveSession | null = null;
@@ -41,7 +44,7 @@ function interstitialUrl(domain: string): string {
 async function refreshRulesNow(): Promise<void> {
   const settings = await loadSettings(chromeKV);
   const state = await loadState(chromeKV, settings, Date.now());
-  const desired: RuleSpec[] = computeBlockedDomains(settings, state).map((domain, i) => ({
+  const desired: RuleSpec[] = computeBlockedDomains(settings, state, Date.now()).map((domain, i) => ({
     id: i + 1,
     domain,
     redirectUrl: interstitialUrl(domain),
@@ -89,6 +92,15 @@ async function manageTickAlarm(): Promise<void> {
 async function scheduleDayRoll(): Promise<void> {
   const settings = await loadSettings(chromeKV);
   chrome.alarms.create(ROLL_ALARM, { when: nextReset(Date.now(), settings.resetHour) + 250 });
+}
+
+/**
+ * Re-sync rules shortly after a pass session lapses, so a site that expires
+ * while the browser is idle closes without waiting for the next unrelated
+ * event. Correctness never depends on it — expiry is checked lazily.
+ */
+function schedulePassExpiry(domain: string, expiresAt: number): void {
+  chrome.alarms.create(PASS_EXPIRE_PREFIX + domain, { when: Math.max(Date.now() + 1000, expiresAt) });
 }
 
 /** Point the tracked session at (tabId, url) of the focused window. */
@@ -171,6 +183,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       await refreshRules();
       await scheduleDayRoll();
     })();
+  } else if (alarm.name.startsWith(PASS_EXPIRE_PREFIX)) {
+    // One-shot: the pass session lapsed; re-sync rules so the site re-blocks.
+    // The alarm auto-expires; nothing to reschedule.
+    void refreshRules();
   }
 });
 
@@ -205,23 +221,22 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
   if (msg.type === 'siteStatus' && msg.domain) {
     void (async () => {
       const domain = msg.domain!;
+      const now = Date.now();
       const settings = await loadSettings(chromeKV);
-      const state = await loadState(chromeKV, settings, Date.now());
+      const state = await loadState(chromeKV, settings, now);
       const site = settings.sites.find((s) => s.domain === domain);
       if (!site) {
         sendResponse({ known: false });
         return;
       }
-      const combined = Object.values(state.perSiteSeconds).reduce((a, b) => a + b, 0);
+      const active = isPassActive(state, domain, now);
       sendResponse({
         known: true,
-        exhausted:
-          !state.passesActive[domain] &&
-          ((site.limitMin != null && (state.perSiteSeconds[domain] ?? 0) >= site.limitMin * 60) ||
-            combined >= settings.combinedBudgetMin * 60),
+        exhausted: isSiteExhausted(domain, state, settings, now),
         passesTotal: site.passes,
         passesUsed: state.passesUsed[domain] ?? 0,
-        passesActive: state.passesActive[domain] === true,
+        passesActive: active,
+        passExpiresAt: active ? state.passesUntil[domain] : null,
       });
     })();
     return true;
@@ -230,28 +245,25 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
   if (msg.type === 'spendPass' && msg.domain) {
     void (async () => {
       const domain = msg.domain!;
+      const now = Date.now();
       const settings = await loadSettings(chromeKV);
-      const state = await loadState(chromeKV, settings, Date.now());
-      const site = settings.sites.find((s) => s.domain === domain);
-      if (!site) {
+      const state = await loadState(chromeKV, settings, now);
+      if (!settings.sites.some((s) => s.domain === domain)) {
         sendResponse({ ok: false, reason: 'unknown-site' });
         return;
       }
-      if (state.passesActive[domain]) {
-        sendResponse({ ok: true, url: `https://${domain}` });
+      const spend = applyPassSpend(state, settings, domain, now);
+      if (!spend.ok) {
+        sendResponse({ ok: false, reason: spend.reason });
         return;
       }
-      const used = state.passesUsed[domain] ?? 0;
-      if (used >= site.passes) {
-        sendResponse({ ok: false, reason: 'no-passes-left' });
-        return;
+      if (!spend.reused) {
+        await saveState(chromeKV, spend.state);
+        await recordOverride(chromeKV, settings, domain, now);
+        schedulePassExpiry(domain, spend.expiresAt);
+        await refreshRules();
       }
-      state.passesActive[domain] = true;
-      state.passesUsed[domain] = used + 1;
-      await saveState(chromeKV, state);
-      await recordOverride(chromeKV, settings, domain, Date.now());
-      await refreshRules();
-      sendResponse({ ok: true, url: `https://${domain}` });
+      sendResponse({ ok: true, url: `https://${domain}`, expiresAt: spend.expiresAt });
     })();
     return true;
   }

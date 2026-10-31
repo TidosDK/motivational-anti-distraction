@@ -38,7 +38,11 @@
         <label>Daily reset hour (0–23, local time)
           <input id="reset-hour" type="number" min="0" max="23" step="1" />
         </label>
+        <label>Day-pass session length (minutes)
+          <input id="pass-session" type="number" min="1" step="1" />
+        </label>
         <p class="hint">The usage day runs from the reset hour to the next one, so a 05:00 reset keeps late-night sessions on the day they started.</p>
+        <p class="hint">A spent day-pass opens its site for this many minutes; when the session ends the site re-blocks (if still over budget) and the next pass is offered.</p>
       </section>
 
       <p id="save-status" aria-live="polite"></p>

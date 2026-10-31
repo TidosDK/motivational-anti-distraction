@@ -37,7 +37,7 @@ await seed({
     version: 1,
     dayStart: dayStartAt(now),
     perSiteSeconds: { 'youtube.com': 80 * 60, 'instagram.com': 31 * 60 },
-    passesActive: { 'youtube.com': true },
+    passesUntil: { 'youtube.com': now + 10 * 60 * 1000 },
     passesUsed: { 'youtube.com': 1 },
   },
   history: {
@@ -91,7 +91,7 @@ await seed({
     version: 1,
     dayStart: dayStartAt(now),
     perSiteSeconds: { 'youtube.com': 90 * 60, 'instagram.com': 31 * 60 },
-    passesActive: { 'youtube.com': true },
+    passesUntil: { 'youtube.com': now + 10 * 60 * 1000 },
     passesUsed: { 'youtube.com': 1 },
   },
 });

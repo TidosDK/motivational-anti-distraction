@@ -38,14 +38,14 @@ describe('loadState (lazy day-roll)', () => {
       version: 1,
       dayStart: startOf(14),
       perSiteSeconds: { 'youtube.com': 3600 },
-      passesActive: { 'youtube.com': true },
+      passesUntil: { 'youtube.com': day(15, 11) },
       passesUsed: { 'youtube.com': 1 },
     };
     const kv = memoryKV({ state: stale });
     const state = await loadState(kv, settings, day(15, 12));
     expect(state.dayStart).toBe(startOf(15));
     expect(state.perSiteSeconds).toEqual({});
-    expect(state.passesActive).toEqual({});
+    expect(state.passesUntil).toEqual({});
     expect(state.passesUsed).toEqual({});
 
     const history = await loadHistory(kv);
@@ -54,12 +54,26 @@ describe('loadState (lazy day-roll)', () => {
     expect(closed.totalSec).toBe(3600);
   });
 
+  it('migrates a pre-timed passesActive state (treats old passes as expired)', async () => {
+    const legacy = {
+      version: 1,
+      dayStart: startOf(15),
+      perSiteSeconds: { 'youtube.com': 60 },
+      passesActive: { 'youtube.com': true }, // old shape
+      passesUsed: { 'youtube.com': 1 },
+    };
+    const kv = memoryKV({ state: legacy });
+    const state = await loadState(kv, settings, day(15, 12));
+    expect(state.passesUntil).toEqual({}); // old active pass is gone, not carried over
+    expect((state as unknown as Record<string, unknown>).passesActive).toBeUndefined();
+  });
+
   it('keeps overrides recorded during the day when the day closes', async () => {
     const stale: DayState = {
       version: 1,
       dayStart: startOf(14),
       perSiteSeconds: { 'youtube.com': 60 },
-      passesActive: {},
+      passesUntil: {},
       passesUsed: {},
     };
     const history: History = {
@@ -80,7 +94,7 @@ describe('accrueForeground', () => {
       version: 1,
       dayStart: startOf(15),
       perSiteSeconds: { 'youtube.com': 10 },
-      passesActive: {},
+      passesUntil: {},
       passesUsed: {},
     });
     await accrueForeground(kv, 'youtube.com', day(15, 10), day(15, 10, ) + 10 * 60 * 1000, settings);
@@ -93,7 +107,7 @@ describe('accrueForeground', () => {
       version: 1,
       dayStart: startOf(14),
       perSiteSeconds: {},
-      passesActive: {},
+      passesUntil: {},
       passesUsed: {},
     };
     const kv = memoryKV({ state: stale });
