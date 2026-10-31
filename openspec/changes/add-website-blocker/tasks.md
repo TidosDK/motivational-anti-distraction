@@ -41,4 +41,4 @@
 ## 8. Integration and hardening
 
 - [ ] 8.1 Run the full manual test checklist in Brave (add sites, exhaust limit, ceremony, day-pass, hard block, next-day reset, offline blocking) and record results in `docs/testing.md`; fix issues found
-- [ ] 8.2 Write `README.md`: purpose, build, load-unpacked instructions, and the v1 feature set; verify a fresh clone follows the doc and loads the extension successfully
+- [x] 8.2 Write `README.md`: purpose, build, load-unpacked instructions, and the v1 feature set; verify a fresh clone follows the doc and loads the extension successfully
