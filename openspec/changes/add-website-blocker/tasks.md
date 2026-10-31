@@ -30,13 +30,13 @@
 
 ## 6. Interstitial and unlock ceremony
 
-- [ ] 6.1 Build interstitial page: blocked site name, remaining passes, quote, fixed confession checkboxes, 30s countdown, disabled-until-both "Quick Override" button; verify observable behavior matching the unlock-ceremony scenarios (each gate independently blocks the button; reload restarts countdown)
+- [x] 6.1 Build interstitial page: blocked site name, remaining passes, quote, fixed confession checkboxes, 30s countdown, disabled-until-both "Quick Override" button; verify observable behavior matching the unlock-ceremony scenarios (each gate independently blocks the button; reload restarts countdown)
 - [x] 6.2 Implement quote deck shuffle-cycle with persisted `{cycleOrder, position}` advanced on display; verify unit tests prove no repeats within a cycle and persistence across simulated restarts
-- [ ] 6.3 Wire override activation: spend pass, record affirmed override event, unblock site, replace interstitial with the real site; verify observable end-to-end unlock flow on a configured test site
+- [x] 6.3 Wire override activation: spend pass, record affirmed override event, unblock site, replace interstitial with the real site; verify observable end-to-end unlock flow on a configured test site
 
 ## 7. Stats page
 
-- [ ] 7.1 Build stats page: today's per-site + combined usage vs limits, passes used, overrides with timestamps, plus >= 7 recent usage days history; verify with seeded storage fixtures rendered correctly
+- [x] 7.1 Build stats page: today's per-site + combined usage vs limits, passes used, overrides with timestamps, plus >= 7 recent usage days history; verify with seeded storage fixtures rendered correctly
 
 ## 8. Integration and hardening
 
