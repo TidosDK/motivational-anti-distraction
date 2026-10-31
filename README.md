@@ -25,9 +25,13 @@ The friction is the feature.
   must all affirm, and a 30-second lockout running *while you read the
   quote*. Reload restarts the lockout.
 - **Day-passes** — each site gets a configurable number of passes per usage
-  day (default 1). One pass = that site stays open until the next reset;
-  other exhausted sites stay blocked. Spent passes are logged with timestamps.
-  No passes left ⇒ hard block until the day rolls.
+  day (default 1). One pass opens *that* site for a short session (default
+  10 minutes, configurable in settings) instead of the whole day; when the
+  session ends, the site blocks again if its budget is still spent, and the
+  next entry costs another pass. Other exhausted sites stay blocked the whole
+  time. A pass is never double-spent: while a session is open, the site is
+  simply accessible. Sessions are cut short by the day reset. Spent passes are
+  logged with timestamps. No passes left ⇒ hard block until the day rolls.
 - **Usage stats** — today's per-site meters vs limits, combined budget bar,
   passes used, override log, and 31 days of history.
 
@@ -70,8 +74,11 @@ crosses its limit or the combined total crosses the budget, a
 `declarativeNetRequest` session rule redirects its main-frame navigations to
 the interstitial page. The interstitial runs the ceremony (confessions +
 concurrent 30 s lockout) and, on Quick Override, spends a day-pass: the rule
-for that domain comes down until the next day boundary. Usage days roll
-lazily on read (correctness never depends on an alarm surviving) with a
+for that domain comes down for the pass session (default 10 minutes, capped
+at the day boundary). Expiry is lazy — a pass exempts its site only while its
+stored expiry timestamp is in the future — with a one-shot alarm at the expiry
+instant just to re-sync the rules promptly when the browser is idle. Usage
+days roll lazily on read (correctness never depends on an alarm surviving) with a
 backup alarm right at the reset hour for promptness.
 
 ## Roadmap

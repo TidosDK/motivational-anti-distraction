@@ -6,7 +6,7 @@ manual checklist to run in Brave itself.
 ## Automated suite
 
 ```bash
-npm test          # 99 unit tests (day math, storage, exhaustion, accounting,
+npm test          # 110 unit tests (day math, storage, exhaustion, accounting,
                   # enforcement rules, quote deck, stats view)
 npm run build     # build dist/
 node tests-e2e/verify-4.2.mjs   # each verification, in order (they are slow:
@@ -16,6 +16,8 @@ node tests-e2e/verify-5.3.mjs
 node tests-e2e/verify-6.1.mjs
 node tests-e2e/verify-6.3.mjs
 node tests-e2e/verify-7.1.mjs
+node tests-e2e/verify-9.3.mjs   # ~2 min: waits for a real 1-min pass session
+                                # to expire
 ```
 
 The e2e verifications drive a real Chromium with `dist/` loaded as an
@@ -29,14 +31,15 @@ engine family.
 
 | Verification | Covers | Result |
 |---|---|---|
-| unit suite (99 tests) | day math, lazy day-roll + pruning, exhaustion, foreground accounting, dNR regex + rule diff, quote deck, stats view | PASS |
+| unit suite (110 tests) | day math, lazy day-roll + pruning, exhaustion incl. timed passes, foreground accounting, dNR regex + rule diff, quote deck, stats view | PASS |
 | verify-4.2 | 60s foreground accrued in real time; background tab accrued ~0 | PASS |
 | verify-5.1 | exhausted site → dNR rule → real navigation redirected (incl. subdomain); budget recovery removes rule | PASS |
 | verify-5.2 | pass spend unblocks only that site; day roll expires the pass; re-exhausted site blocks again | PASS |
 | verify-5.3 | day-roll alarm scheduled at reset boundary; firing it re-syncs rules and reschedules | PASS |
 | verify-6.1 | ceremony: quote, fixed confessions, 30s countdown; each gate independently disables the button; reload restarts lockout; un-check disables | PASS |
-| verify-6.3 | end-to-end: ceremony → override → navigates to real site; pass spent, override logged, rule removed; hard-block display when no passes | PASS |
+| verify-6.3 | end-to-end: ceremony → override → navigates to real site; timed pass spent, override logged, rule removed; hard-block display when no passes | PASS |
 | verify-7.1 | stats page from seeded fixtures: today's meters/limits/passes, badge, override timestamps, history rows, live re-render | PASS |
+| verify-9.3 | timed day-pass: spend unblocks, in-session nav does not double-spend, session lapse auto-reblocks (pass-expire alarm), next navigation re-blocks and next pass is offered | PASS |
 
 ## Manual checklist (Brave)
 
@@ -45,8 +48,8 @@ A site list you actually use makes the limits feel real; `example.com` /
 `example.org` work for the mechanical checks. Record ✅/❌ per row.
 
 1. **Settings persist** — add `example.com` (limit 10 min, 1 pass), set
-   combined budget and reset hour, `chrome://extensions` ⟳ the extension,
-   reopen settings: values survive.
+   combined budget, reset hour and day-pass session length, `chrome://extensions`
+   ⟳ the extension, reopen settings: values survive.
 2. **Exhaust → interstitial** — set the limit to 1 min, browse
    `example.com` in the foreground until the meter passes it; next visit (or a
    reload, after ≤1 min tick) lands on the interstitial. `www.example.com`
@@ -57,10 +60,15 @@ A site list you actually use makes the limits feel real; `example.com` /
    stays disabled until the 30s AND all four confessions. Reload restarts the
    timer from 30.
 5. **Day-pass scope** — with two exhausted sites, override one; the other
-   stays blocked. The unblocked one loads for the rest of the day.
-6. **Hard block** — with passes spent, interstitial says "No day-passes left"
-   and offers no ceremony. (By design this persists until the day rolls —
-   there is no timed re-check.)
+   stays blocked. The unblocked one loads for the pass session (below).
+ 5b. **Pass session expiry** — set "Day-pass session length" to 1 minute,
+   exhaust `example.com` (give it 2 passes), complete the ceremony. The site
+   loads. Within the session, visiting again must NOT spend a second pass.
+   Wait ~1–2 minutes; the next navigation to `example.com` lands on the
+   interstitial again and offers the second pass (not a hard block).
+6. **Hard block** — with all of a site's passes spent (e.g. spend both passes
+   above), the interstitial says "No day-passes left" and offers no ceremony.
+   This persists until the day rolls.
 7. **Day roll** — set reset hour to the next hour, exhaust a site, wait for
    the hour + a few seconds: site reopens without touching anything.
 8. **Night owl** — with reset hour 5, a session at 01:00 counts toward
@@ -86,12 +94,13 @@ Fill this table after running the steps above:
 
 | # | Step | Result | Notes |
 |---|---|---|---|
-| 1 | Settings persist | ✅ | |
-| 2 | Exhaust → interstitial | ⚠️ | Works, but block landed 1–3 min after a 1-min limit (see triage). Quote enlarged 2026-10-31. Post-override re-blocking = open product question |
+| 1 | Settings persist | ✅ | Also re-check the new "Day-pass session length" field persists |
+| 2 | Exhaust → interstitial | ⚠️ | Works, but block lands 1–3 min after a 1-min limit (see triage). Quote enlarged 2026-10-31 |
 | 3 | Background doesn't count | ✅ | |
 | 4 | Ceremony gates | ✅ | |
-| 5 | Day-pass scope | ✅ | Override unblocked only the chosen site |
-| 6 | Hard block | ✅ | With 0 passes: stays blocked until reset — works great. ("Blocks again after some time" was not the intended behavior; pass-until-reset is per spec) |
+| 5 | Day-pass scope | ☐ | Re-test under timed model: override unblocks only the chosen site |
+| 5b | Pass session expiry | ☐ | New (timed model): 1-min session re-blocks on next nav, 2nd pass offered, no double-spend |
+| 6 | Hard block | ☐ | Re-test: with all passes spent, stays blocked until day rolls |
 | 7 | Day roll | ☐ | Deferred by user |
 | 8 | Night owl | ☐ | Deferred by user |
 | 9 | Offline blocking | — | Not tested |
@@ -108,17 +117,14 @@ Fill this table after running the steps above:
   flushed by the 1-minute meter tick (MV3 alarms have a ~1-minute minimum
   interval), and (2) the redirect rule applies to *new* main-frame
   navigations — a page that is already open (especially a single-page app
-  like YouTube) keeps playing until you reload or navigate again. Options
-  under discussion: proactively redirect the focused tab the moment a budget
-  runs out, and/or tick every 30s.
-- **"Site doesn't get blocked again after the override."** Working as
-  currently specified: one spent day-pass opens that site until the next
-  daily reset, and usage while exempt never re-blocks (it is still counted
-  in stats). Whether a pass should instead grant a limited visit (e.g. 10
-  minutes, or "until you leave") is an open product decision.
-- **Step 6 expectation mismatch:** hard block means "stays blocked until
-  the day rolls", not "blocks again shortly". Confirmed working with 0
-  passes.
+  like YouTube) keeps playing until you reload or navigate again. Decision:
+  keep this behavior (block on next navigation); not treated as a defect.
+- **"Site doesn't get blocked again after the override."** → **fixed** by the
+  timed day-pass (design D7): a spent pass now opens its site for a
+  configurable session (default 10 min) and re-blocks on the next navigation
+  once it lapses; the next pass is then offered. Steps 5/5b/6 re-test this.
+- **Step 6 expectation mismatch:** hard block (all passes spent) means
+  "stays blocked until the day rolls", not "blocks again shortly".
 - **Step 12** instructions rewritten to be concrete (idle a blocked
   foreground tab ~5 min, then check stats ≈ full duration). Steps 7–8 to be
   tested later by user.
