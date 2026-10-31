@@ -60,3 +60,24 @@ blockquote cite { display: block; margin-top: 0.5rem; font-style: normal; color:
 #hard-block { color: var(--accent); font-weight: 600; }
 #escape { margin-top: 1.5rem; display: flex; gap: 0.5rem; }
 #escape button { background: var(--line); color: var(--fg); }
+
+/* Stats page */
+.card { border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.25rem 1.25rem; margin-top: 1.5rem; }
+.card h2 { margin-top: 0.25rem; }
+.muted { color: var(--muted); font-size: 0.9rem; }
+.usage-row { display: flex; align-items: center; gap: 1rem; padding: 0.5rem 0; border-top: 1px solid var(--line); }
+.usage-row.combined { font-weight: 600; }
+.usage-info { flex: 1; min-width: 0; }
+.usage-domain { font-weight: 600; }
+.badge {
+  margin-left: 0.5rem; font-size: 0.75rem; font-weight: 500; color: var(--accent);
+  background: var(--accent-soft); border-radius: 999px; padding: 0.1rem 0.5rem;
+}
+.meter { width: 160px; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+.meter-fill { height: 100%; width: 0; background: var(--accent); }
+ul.overrides { margin: 0.5rem 0 0; padding-left: 1.25rem; color: var(--muted); font-size: 0.9rem; }
+.history-row { display: grid; grid-template-columns: 7rem 5rem 1fr auto; gap: 0.75rem; align-items: baseline; padding: 0.5rem 0; border-top: 1px solid var(--line); }
+.history-date { font-weight: 600; }
+.history-total { font-variant-numeric: tabular-nums; }
+.history-detail { min-width: 0; overflow-wrap: anywhere; }
+.history-overrides { color: var(--accent); font-size: 0.85rem; }

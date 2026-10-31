@@ -24,14 +24,14 @@
 
 ## 5. Enforcement
 
-- [ ] 5.1 Implement dNR session-rule sync: recompute-and-diff redirect rules (main_frame, domain + subdomains → `interstitial.html?s=<domain>`) on every state change, startup, and settings update; verify by unit-testing the rule-diff function and observing rules via `chrome.declarativeNetRequest.getDynamicRules` in devtools
-- [ ] 5.2 Implement pass spend + active-pass expiry (site-specific, until `nextReset`) wired into rule sync; verify observable behavior: spending a pass unblocks only that site, and it is blocked again after the day rolls
-- [ ] 5.3 Add day-boundary alarm to refresh rules and roll the day promptly at the reset hour; verify observable behavior by setting reset hour to one minute ahead and watching exhausted sites reopen
+- [x] 5.1 Implement dNR session-rule sync: recompute-and-diff redirect rules (main_frame, domain + subdomains → `interstitial.html?s=<domain>`) on every state change, startup, and settings update; verify by unit-testing the rule-diff function and observing rules via `chrome.declarativeNetRequest.getDynamicRules` in devtools
+- [x] 5.2 Implement pass spend + active-pass expiry (site-specific, until `nextReset`) wired into rule sync; verify observable behavior: spending a pass unblocks only that site, and it is blocked again after the day rolls
+- [x] 5.3 Add day-boundary alarm to refresh rules and roll the day promptly at the reset hour; verify observable behavior by setting reset hour to one minute ahead and watching exhausted sites reopen
 
 ## 6. Interstitial and unlock ceremony
 
 - [ ] 6.1 Build interstitial page: blocked site name, remaining passes, quote, fixed confession checkboxes, 30s countdown, disabled-until-both "Quick Override" button; verify observable behavior matching the unlock-ceremony scenarios (each gate independently blocks the button; reload restarts countdown)
-- [ ] 6.2 Implement quote deck shuffle-cycle with persisted `{cycleOrder, position}` advanced on display; verify unit tests prove no repeats within a cycle and persistence across simulated restarts
+- [x] 6.2 Implement quote deck shuffle-cycle with persisted `{cycleOrder, position}` advanced on display; verify unit tests prove no repeats within a cycle and persistence across simulated restarts
 - [ ] 6.3 Wire override activation: spend pass, record affirmed override event, unblock site, replace interstitial with the real site; verify observable end-to-end unlock flow on a configured test site
 
 ## 7. Stats page

@@ -1,6 +1,7 @@
 import { nextReset } from '../shared/dayMath';
 import { domainMatches, hostFromUrl } from '../shared/domains';
 import { chromeKV, accrueForeground, loadActiveSession, loadDeck, loadSettings, loadState, recordOverride, saveActiveSession, saveDeck, saveState } from '../shared/storage';
+import { SETTINGS_KEY, STATE_KEY } from '../shared/types';
 import { QUOTES } from '../shared/quotes';
 import { nextQuote } from '../shared/deck';
 import { closeSession, switchFocus, tickSession, type ActiveSession, type Segment } from './accounting';
@@ -37,7 +38,7 @@ function interstitialUrl(domain: string): string {
   return chrome.runtime.getURL(`/interstitial.html?s=${encodeURIComponent(domain)}`);
 }
 
-async function refreshRules(): Promise<void> {
+async function refreshRulesNow(): Promise<void> {
   const settings = await loadSettings(chromeKV);
   const state = await loadState(chromeKV, settings, Date.now());
   const desired: RuleSpec[] = computeBlockedDomains(settings, state).map((domain, i) => ({
@@ -68,6 +69,18 @@ async function refreshRules(): Promise<void> {
   });
 }
 
+/**
+ * Serialized rule sync. Triggers (accruals, storage events, alarms) can
+ * overlap; running diffs concurrently could double-remove a rule id and
+ * throw, so refreshes queue instead.
+ */
+let refreshChain: Promise<void> = Promise.resolve();
+function refreshRules(): Promise<void> {
+  const run = refreshChain.then(refreshRulesNow, refreshRulesNow);
+  refreshChain = run.catch(() => {});
+  return run;
+}
+
 async function manageTickAlarm(): Promise<void> {
   if (active) chrome.alarms.create(TICK_ALARM, { periodInMinutes: 1 });
   else await chrome.alarms.clear(TICK_ALARM);
@@ -83,9 +96,12 @@ async function focusTab(windowId: number, tabId: number, url: string | undefined
   const domain = await blockedDomainForUrl(url);
   const r = switchFocus(active, domain, tabId, windowId, Date.now());
   await setActive(r.next);
+  const accrued = r.closed != null;
   await accrue(r.closed);
   await manageTickAlarm();
-  await refreshRules();
+  // Only re-derive rules when usage actually changed; skipping the no-op path
+  // keeps the day-roll alarm the sole promptness mechanism at day boundaries.
+  if (accrued) await refreshRules();
 }
 
 async function focusActiveTabOf(windowId: number): Promise<void> {
@@ -161,9 +177,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // --- settings changes -------------------------------------------------------------
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes.settings) {
+  if (area !== 'local') return;
+  // Chrome dedupes writes: setting a key to its existing value fires no
+  // event, so watch every key that can change the desired rule set.
+  if (changes[SETTINGS_KEY] || changes[STATE_KEY]) {
     void refreshRules();
-    void scheduleDayRoll();
+    if (changes[SETTINGS_KEY]) void scheduleDayRoll();
   }
 });
 
