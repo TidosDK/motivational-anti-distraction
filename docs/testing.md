@@ -59,7 +59,8 @@ A site list you actually use makes the limits feel real; `example.com` /
 5. **Day-pass scope** — with two exhausted sites, override one; the other
    stays blocked. The unblocked one loads for the rest of the day.
 6. **Hard block** — with passes spent, interstitial says "No day-passes left"
-   and offers no ceremony.
+   and offers no ceremony. (By design this persists until the day rolls —
+   there is no timed re-check.)
 7. **Day roll** — set reset hour to the next hour, exhaust a site, wait for
    the hour + a few seconds: site reopens without touching anything.
 8. **Night owl** — with reset hour 5, a session at 01:00 counts toward
@@ -71,23 +72,68 @@ A site list you actually use makes the limits feel real; `example.com` /
     and history rows match what you actually did today.
 11. **Brave Shields** — Shields up/down on a blocked site doesn't break
     redirect or time accounting.
-12. **Worker eviction** — wait 1–2 idle minutes (worker dies in
-    `brave://extensions` output), then browse a blocked site: minutes keep
-    accruing (session state restores from storage).
+12. **Worker eviction** — the extension's background worker is killed by the
+    browser after ~30s of idle time; it must restore its counting from
+    storage on wake-up. Test: open a blocked site (e.g. `example.com` with a
+    10-min limit) in a foreground tab and just let it sit for 5 minutes
+    without touching the browser. On `brave://extensions` the extension card
+    will show "Service worker (inactive)" at some point — that's the eviction
+    happening. Then open the stats page: the site should show ≈5 minutes
+    (±1 min tick tolerance), *not* just the first 30 seconds. If counting
+    stopped at the eviction, that's a failure.
 
 Fill this table after running the steps above:
 
 | # | Step | Result | Notes |
 |---|---|---|---|
-| 1 | Settings persist | ☐ | |
-| 2 | Exhaust → interstitial | ☐ | |
-| 3 | Background doesn't count | ☐ | |
-| 4 | Ceremony gates | ☐ | |
-| 5 | Day-pass scope | ☐ | |
-| 6 | Hard block | ☐ | |
-| 7 | Day roll | ☐ | |
-| 8 | Night owl | ☐ | |
-| 9 | Offline blocking | ☐ | |
-| 10 | Stats | ☐ | |
-| 11 | Brave Shields | ☐ | |
-| 12 | Worker eviction | ☐ | |
+| 1 | Settings persist | ✅ | |
+| 2 | Exhaust → interstitial | ⚠️ | Works, but block landed 1–3 min after a 1-min limit (see triage). Quote enlarged 2026-10-31. Post-override re-blocking = open product question |
+| 3 | Background doesn't count | ✅ | |
+| 4 | Ceremony gates | ✅ | |
+| 5 | Day-pass scope | ✅ | Override unblocked only the chosen site |
+| 6 | Hard block | ✅ | With 0 passes: stays blocked until reset — works great. ("Blocks again after some time" was not the intended behavior; pass-until-reset is per spec) |
+| 7 | Day roll | ☐ | Deferred by user |
+| 8 | Night owl | ☐ | Deferred by user |
+| 9 | Offline blocking | — | Not tested |
+| 10 | Stats | ✅ | |
+| 11 | Brave Shields | — | Not tested; no observed interference |
+| 12 | Worker eviction | ☐ | Instructions rewritten 2026-10-31 — please retest |
+
+### Findings & triage — 2026-10-31 (user run, Brave)
+
+- **Quote too small** → fixed: interstitial quote is now 1.45rem with a
+  larger cite line.
+- **Blocking lagged a 1-minute limit by 1–3 minutes.** Two compounding
+  causes: (1) while you stay on a page without navigating, usage is only
+  flushed by the 1-minute meter tick (MV3 alarms have a ~1-minute minimum
+  interval), and (2) the redirect rule applies to *new* main-frame
+  navigations — a page that is already open (especially a single-page app
+  like YouTube) keeps playing until you reload or navigate again. Options
+  under discussion: proactively redirect the focused tab the moment a budget
+  runs out, and/or tick every 30s.
+- **"Site doesn't get blocked again after the override."** Working as
+  currently specified: one spent day-pass opens that site until the next
+  daily reset, and usage while exempt never re-blocks (it is still counted
+  in stats). Whether a pass should instead grant a limited visit (e.g. 10
+  minutes, or "until you leave") is an open product decision.
+- **Step 6 expectation mismatch:** hard block means "stays blocked until
+  the day rolls", not "blocks again shortly". Confirmed working with 0
+  passes.
+- **Step 12** instructions rewritten to be concrete (idle a blocked
+  foreground tab ~5 min, then check stats ≈ full duration). Steps 7–8 to be
+  tested later by user.
+
+
+Feedback based on steps:
+1. Works fine
+2. I set the limit to 1 minute for example.com, but it seemed like it took way more than 1 minutes. I also added youtube.com with a 1 minute limit, which after 2-3 minutes did block. The example.com domain did block after some time. The "motivational site" where I have to wait 30 seconds did work and was great. I would like for the quoute to be larger so it is more easily seen. It seemed after I went through the "motivational site" for example.com, it wouldn't block the site again (I don't know if I want it to keep blocking the site or not. I want to discuss this at some point).
+3. Leaving the website open in the background isn't tracked.
+4. Works fine
+5. If you mean that both youtube.com and reddit.com is blocked, and I override youtube.com which only unblocks youtube.com and not reddit.com, then yes it works fine.
+6. If you mean that it should block the site again after some time, then no, it doesn't block that site again. example.com keeps being unblocked after using the single day-pass. I did try with a site that had no day-passes at all in which it works great.
+7. Will test later, not now.
+8. Will test later, not now.
+9. Won't test.
+10. Yes, that works great.
+11. Won't test, but doesn't seem to affect.
+12. I don't understand the instructions.
