@@ -6,21 +6,40 @@ Defines the daily budget model: how time on blocked sites is counted, the
 per-site and combined daily limits, the configurable daily reset boundary,
 and when a site is considered exhausted.
 
+Counting is deliberately generous: a window fully covered by another window
+on the same monitor is indistinguishable from a visible one via browser APIs
+and therefore counts as visible, and system screen-lock is not detected. Both
+are accepted limitations.
+
 ## ADDED Requirements
 
 ### Requirement: Foreground-only time accounting
-The system SHALL count usage time for a blocked site only while a tab of that
-site is the foreground tab of a focused browser window. Time in background
-tabs, unfocused windows, or minimized/hidden browser windows MUST NOT be
-counted. At most one tab's time counts per site at any moment.
+The system SHALL count usage time for a blocked site while a tab of that site
+is the active tab of **any visible browser window** — a window in normal,
+maximized, or fullscreen state, on any monitor, whether or not it has keyboard
+focus. Time in background (non-active) tabs and in minimized or hidden windows
+MUST NOT be counted. A domain that is the active tab of two or more visible
+windows at once SHALL still accrue at most once per second of wall-clock time.
 
 #### Scenario: Background tab does not accrue
 - **WHEN** a YouTube tab is open but the user is active in another tab
 - **THEN** YouTube usage time does not increase
 
 #### Scenario: Foreground tab accrues
-- **WHEN** a YouTube tab is the foreground tab of the focused window for 10 minutes
+- **WHEN** a YouTube tab is the active tab of a visible window for 10 minutes
 - **THEN** YouTube usage for the day increases by approximately 10 minutes
+
+#### Scenario: Unfocused window on a second monitor accrues
+- **WHEN** YouTube is the active tab of a visible window on monitor two while the user types in a different window on monitor one
+- **THEN** YouTube usage keeps increasing at real time
+
+#### Scenario: Minimized window stops the clock
+- **WHEN** the only YouTube window is minimized and later restored
+- **THEN** usage stops accruing while minimized and resumes after restore
+
+#### Scenario: Same domain in two windows counts once
+- **WHEN** two visible windows each show YouTube as their active tab for 10 minutes
+- **THEN** YouTube usage for the day increases by approximately 10 minutes, not 20
 
 ### Requirement: Per-site daily limit
 The user SHALL be able to set a daily time limit in minutes for each blocked

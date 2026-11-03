@@ -37,14 +37,26 @@ any bytes of the site load (no flicker/content leak, unlike
 `webNavigation` + `tabs.update`, which can flash the real page first), and
 Brave fully supports dNR.
 
-### D3: Foreground usage via tab events + 1-minute safety alarm
-Usage sessions open when a blocked site becomes the active tab of the focused
-window (`tabs.onActivated` / `tabs.onUpdated` / `windows.onFocusChanged`
-close the previous session with timestamps). Because MV3 service workers die
-when idle, a `chrome.alarms` tick (1 min, only while a blocked site has
-focus) flushes accrued seconds to storage, bounding lost data to ~1 minute if
-the worker or browser dies. Alternative (pure event accounting, no alarms)
-loses the tail of an unclosed session on crashes; a per-second poll is wasteful.
+### D3: Foreground usage via per-window sessions + 1-minute safety alarm
+Foreground means "active tab of any *visible* window" (multi-monitor aware),
+not "of the focused window": a blocked site on a second monitor is watched
+while the user works elsewhere. The worker keeps a session map keyed by
+`windowId`; each entry is the blocked site that is that window's active tab.
+Sessions open on `tabs.onActivated` / `tabs.onUpdated`, on worker start-up
+(enumerating `windows.getAll` and skipping minimized windows), and on window
+restore; they close on tab switch, tab close, window close, and minimize
+(`windows.onBoundsChanged` re-evaluates window state). `windows.onFocusChanged`
+does NOT end sessions — focus is irrelevant to watching. Because MV3 service
+workers die when idle, a `chrome.alarms` tick (1 min, only while any session
+is open) flushes accrued seconds to storage, bounding lost data to ~1 minute.
+Sessions of the *same domain* in different windows overlap, so accrual is
+unioned per domain: a domain charges `now - oldest session anchor` once per
+tick and all its anchors reset together (closed sessions never double-charge
+because they flush on close). Windows on one monitor covered by another still
+count — Chrome exposes no occlusion or screen-lock signal to extensions — an
+accepted limitation of generous counting. Alternative (pure event accounting,
+no alarms) loses the tail of unclosed sessions on crashes; a per-second poll
+is wasteful.
 
 ### D4: One source of truth for the usage day
 A single helper pair — `usageDayStart(now, resetHour)` / `nextReset(...)` —

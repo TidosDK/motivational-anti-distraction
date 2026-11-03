@@ -12,7 +12,9 @@ autopilot reflex — capped at a fixed amount of unproductive time per day.
 
 - New Chrome (Manifest V3, Brave-compatible) extension that blocks a
   user-configured list of distraction websites.
-- Time on each blocked site is tracked while its tab is in the foreground.
+- Time on each blocked site is tracked while its tab is the active tab of any
+  visible browser window (multi-monitor aware); background tabs and minimized
+  windows do not count.
   Each site can have its own daily time limit; additionally a combined daily
   "unproductive time" budget applies across all listed sites together
   (e.g. YouTube 1h, Instagram 30m, Facebook 15m, combined 2h).
