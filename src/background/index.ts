@@ -1,10 +1,10 @@
 import { nextReset } from '../shared/dayMath';
 import { domainMatches, hostFromUrl } from '../shared/domains';
-import { chromeKV, accrueForeground, loadActiveSession, loadDeck, loadSettings, loadState, recordOverride, saveActiveSession, saveDeck, saveState } from '../shared/storage';
+import { chromeKV, accrueForeground, loadDeck, loadSessions, loadSettings, loadState, recordOverride, saveDeck, saveSessions, saveState } from '../shared/storage';
 import { SETTINGS_KEY, STATE_KEY } from '../shared/types';
 import { QUOTES } from '../shared/quotes';
 import { nextQuote } from '../shared/deck';
-import { closeSession, switchFocus, tickSession, type ActiveSession, type Segment } from './accounting';
+import { closeWindowSession, hasAnySession, setWindowSession, tickAll, type Segment, type SessionMap } from './accounting';
 import { computeBlockedDomains, diffRules, regexFilterFor, type RuleSpec } from './enforcement';
 import { applyPassSpend, isPassActive, isSiteExhausted } from '../shared/exhaustion';
 
@@ -13,14 +13,18 @@ const ROLL_ALARM = 'day-roll';
 /** One-shot alarms: `pass-expire:<domain>` refreshes rules when a session lapses. */
 const PASS_EXPIRE_PREFIX = 'pass-expire:';
 
-/** The foreground tab session of the focused window (null = nothing counted). */
-let active: ActiveSession | null = null;
-let focusedWindowId: number = chrome.windows.WINDOW_ID_NONE;
-let focusEventSeen = false;
+/**
+ * Counted sessions per visible window (design D3, multi-monitor): every
+ * window that is not minimized contributes its active tab. Keyboard focus
+ * is irrelevant — a blocked site on a second monitor is still watched.
+ */
+let sessions: SessionMap = {};
+/** Windows known to be minimized; their active tabs are not counted. */
+const minimizedWindows = new Set<number>();
 
-async function setActive(next: ActiveSession | null): Promise<void> {
-  active = next;
-  await saveActiveSession(chromeKV, next, Date.now());
+async function setSessions(next: SessionMap): Promise<void> {
+  sessions = next;
+  await saveSessions(chromeKV, next, Date.now());
 }
 
 async function blockedDomainForUrl(url: string | undefined): Promise<string | null> {
@@ -85,7 +89,7 @@ function refreshRules(): Promise<void> {
 }
 
 async function manageTickAlarm(): Promise<void> {
-  if (active) chrome.alarms.create(TICK_ALARM, { periodInMinutes: 1 });
+  if (hasAnySession(sessions)) chrome.alarms.create(TICK_ALARM, { periodInMinutes: 1 });
   else await chrome.alarms.clear(TICK_ALARM);
 }
 
@@ -103,62 +107,78 @@ function schedulePassExpiry(domain: string, expiresAt: number): void {
   chrome.alarms.create(PASS_EXPIRE_PREFIX + domain, { when: Math.max(Date.now() + 1000, expiresAt) });
 }
 
-/** Point the tracked session at (tabId, url) of the focused window. */
-async function focusTab(windowId: number, tabId: number, url: string | undefined): Promise<void> {
-  const domain = await blockedDomainForUrl(url);
-  const r = switchFocus(active, domain, tabId, windowId, Date.now());
-  await setActive(r.next);
-  const accrued = r.closed != null;
-  await accrue(r.closed);
+/**
+ * Point window `windowId`'s counted session at (tabId, url): flushes the
+ * previous domain union (charge-once), then opens a fresh session when the
+ * tab shows a blocked site in a non-minimized window.
+ */
+async function updateWindowTab(windowId: number, tabId: number, url: string | undefined): Promise<void> {
+  const domain = minimizedWindows.has(windowId) ? null : await blockedDomainForUrl(url);
+  const r = setWindowSession(sessions, windowId, domain, tabId, Date.now());
+  await setSessions(r.next);
+  const accrued = r.segment != null;
+  await accrue(r.segment);
   await manageTickAlarm();
   // Only re-derive rules when usage actually changed; skipping the no-op path
   // keeps the day-roll alarm the sole promptness mechanism at day boundaries.
   if (accrued) await refreshRules();
 }
 
-async function focusActiveTabOf(windowId: number): Promise<void> {
+/** Re-read a window's current active tab and track it. */
+async function trackActiveTabOf(windowId: number): Promise<void> {
   try {
     const [tab] = await chrome.tabs.query({ windowId, active: true });
-    await focusTab(windowId, tab?.id ?? -1, tab?.url);
+    await updateWindowTab(windowId, tab?.id ?? -1, tab?.url);
   } catch {
     /* window vanished */
   }
 }
 
-// --- focus / tab events -------------------------------------------------------
+/** Drop a window's session and flush its pending time. */
+async function dropWindow(windowId: number): Promise<void> {
+  const r = closeWindowSession(sessions, windowId, Date.now());
+  await setSessions(r.next);
+  await accrue(r.segment);
+  await manageTickAlarm();
+}
+
+// --- tab / window events -------------------------------------------------------
+// Every visible window counts; focus changes are deliberately NOT tracked.
 
 chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
-  focusEventSeen = true;
-  if (focusedWindowId !== chrome.windows.WINDOW_ID_NONE && windowId !== focusedWindowId) return;
-  void chrome.tabs.get(tabId).then((tab) => focusTab(windowId, tabId, tab.url)).catch(() => {});
+  void chrome.tabs.get(tabId).then((tab) => updateWindowTab(windowId, tabId, tab.url)).catch(() => {});
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  focusEventSeen = true;
   if (!tab.active) return;
-  if (focusedWindowId !== chrome.windows.WINDOW_ID_NONE && tab.windowId !== focusedWindowId) return;
   if (changeInfo.url !== undefined || changeInfo.status === 'complete') {
-    void focusTab(tab.windowId, tabId, tab.url);
+    void updateWindowTab(tab.windowId, tabId, tab.url);
   }
 });
 
 chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
-  if (active?.tabId === tabId) {
-    const closed = closeSession(active, Date.now());
-    void setActive(null).then(() => accrue(closed)).then(manageTickAlarm);
-  } else if (removeInfo.windowId === focusedWindowId && !removeInfo.isWindowClosing) {
-    void focusActiveTabOf(removeInfo.windowId);
-  }
+  const cur = sessions[String(removeInfo.windowId)];
+  if (cur?.tabId !== tabId) return; // a background tab closed; nothing tracked
+  if (removeInfo.isWindowClosing) void dropWindow(removeInfo.windowId);
+  else void trackActiveTabOf(removeInfo.windowId);
 });
 
-chrome.windows.onFocusChanged.addListener((windowId) => {
-  focusEventSeen = true;
-  focusedWindowId = windowId;
-  if (windowId === chrome.windows.WINDOW_ID_NONE) {
-    const closed = closeSession(active, Date.now());
-    void setActive(null).then(() => accrue(closed)).then(manageTickAlarm);
+chrome.windows.onRemoved.addListener((windowId) => {
+  minimizedWindows.delete(windowId);
+  void dropWindow(windowId);
+});
+
+// Minimize/restore (also fires on resize/maximize — harmless re-anchoring).
+// Chrome passes the full Window, whose `state` tells us about minimize.
+chrome.windows.onBoundsChanged.addListener((window) => {
+  const windowId = window.id;
+  if (windowId == null) return;
+  if (window.state === 'minimized') {
+    minimizedWindows.add(windowId);
+    void dropWindow(windowId);
   } else {
-    void focusActiveTabOf(windowId);
+    minimizedWindows.delete(windowId);
+    void trackActiveTabOf(windowId);
   }
 });
 
@@ -167,13 +187,13 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === TICK_ALARM) {
     void (async () => {
-      if (!active) {
+      if (!hasAnySession(sessions)) {
         await chrome.alarms.clear(TICK_ALARM);
         return;
       }
-      const { accrued, next } = tickSession(active, Date.now());
-      await setActive(next);
-      await accrue(accrued);
+      const { segments, next } = tickAll(sessions, Date.now());
+      await setSessions(next);
+      for (const seg of segments) await accrue(seg);
       await refreshRules();
     })();
   } else if (alarm.name === ROLL_ALARM) {
@@ -274,19 +294,37 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
 // --- lifecycle ------------------------------------------------------------------------
 
 async function init(): Promise<void> {
-  try {
-    const w = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
-    if (w?.id != null && !focusEventSeen) focusedWindowId = w.id;
-  } catch {
-    /* no windows yet */
+  // Rebuild the session map from live browser state on every worker wake:
+  // every visible window's active blocked tab counts. Storage only supplies
+  // continuity anchors for sessions that were already open when the worker
+  // died (same window, tab and domain), anchored at the last alive timestamp.
+  const stored = await loadSessions(chromeKV);
+  const now = Date.now();
+  const next: SessionMap = {};
+  minimizedWindows.clear();
+  // No windowTypes filter: popups and extra windows are visible too.
+  const wins = await chrome.windows.getAll();
+  for (const w of wins) {
+    if (w.id == null) continue;
+    if (w.state === 'minimized') {
+      minimizedWindows.add(w.id);
+      continue;
+    }
+    try {
+      const [tab] = await chrome.tabs.query({ windowId: w.id, active: true });
+      const domain = await blockedDomainForUrl(tab?.url);
+      if (!domain || tab?.id == null) continue;
+      const prev = stored?.sessions[String(w.id)];
+      const anchor =
+        prev && prev.tabId === tab.id && prev.domain === domain
+          ? Math.min(now, Math.max(prev.sinceMs, stored!.savedAt))
+          : now;
+      next[String(w.id)] = { windowId: w.id, tabId: tab.id, domain, sinceMs: anchor };
+    } catch {
+      /* window vanished mid-enumeration */
+    }
   }
-  const restored = await loadActiveSession(chromeKV);
-  // Don't clobber sessions that live events already established while init ran.
-  if (restored?.session && !focusEventSeen) {
-    // The worker died with a session open; events fired after this point close
-    // it accurately, so re-anchor the start at the last known-alive timestamp.
-    active = { ...restored.session, sinceMs: Math.max(restored.session.sinceMs, restored.savedAt) };
-  }
+  await setSessions(next);
   await manageTickAlarm();
   await refreshRules();
   await scheduleDayRoll();

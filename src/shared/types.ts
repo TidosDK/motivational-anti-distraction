@@ -74,3 +74,9 @@ export interface ActiveSession {
   domain: string;
   sinceMs: number;
 }
+
+/**
+ * Counted sessions keyed by window id (stringified for storage JSON). One
+ * entry per visible window whose active tab is a blocked site.
+ */
+export type SessionMap = Record<string, ActiveSession>;

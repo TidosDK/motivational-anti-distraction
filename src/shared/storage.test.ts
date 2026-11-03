@@ -4,14 +4,24 @@ import {
   accrueForeground,
   emptyRecord,
   loadHistory,
+  loadSessions,
   loadSettings,
   loadState,
   memoryKV,
   pruneHistory,
   recordOverride,
+  saveSessions,
   saveState,
 } from './storage';
-import { DEFAULT_SETTINGS, HISTORY_KEY, type DayState, type History, type Settings } from './types';
+import {
+  DEFAULT_SETTINGS,
+  HISTORY_KEY,
+  SESSION_KEY,
+  type ActiveSession,
+  type DayState,
+  type History,
+  type Settings,
+} from './types';
 
 const H = 60 * 60 * 1000;
 const day = (date: number, hour = 12) => new Date(2026, 9, date, hour, 0, 0, 0).getTime();
@@ -142,5 +152,31 @@ describe('pruneHistory', () => {
     expect(pruned['2026-09-01']).toBeUndefined();
     expect(pruned['2026-09-10']).toBeDefined();
     expect(pruned['2026-09-30']).toBeDefined();
+  });
+});
+
+describe('session map storage', () => {
+  const s1: ActiveSession = { windowId: 1, tabId: 10, domain: 'youtube.com', sinceMs: 1000 };
+  const s2: ActiveSession = { windowId: 2, tabId: 20, domain: 'reddit.com', sinceMs: 2000 };
+
+  it('round-trips the per-window session map', async () => {
+    const kv = memoryKV();
+    await saveSessions(kv, { '1': s1, '2': s2 }, 5000);
+    const stored = await loadSessions(kv);
+    expect(stored).toEqual({ sessions: { '1': s1, '2': s2 }, savedAt: 5000 });
+  });
+
+  it('returns undefined on a fresh install', async () => {
+    expect(await loadSessions(memoryKV())).toBeUndefined();
+  });
+
+  it('migrates the legacy single-session shape', async () => {
+    const kv = memoryKV({ [SESSION_KEY]: { session: s1, savedAt: 4000 } });
+    expect(await loadSessions(kv)).toEqual({ sessions: { '1': s1 }, savedAt: 4000 });
+  });
+
+  it('drops a legacy null session', async () => {
+    const kv = memoryKV({ [SESSION_KEY]: { session: null, savedAt: 4000 } });
+    expect(await loadSessions(kv)).toEqual({ sessions: {}, savedAt: 4000 });
   });
 });

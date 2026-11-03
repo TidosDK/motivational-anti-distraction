@@ -13,6 +13,7 @@ import {
   type History,
   type Settings,
   type ActiveSession,
+  type SessionMap,
 } from './types';
 
 /** Minimal storage abstraction so tests can run without the chrome namespace. */
@@ -197,20 +198,28 @@ export function saveDeck(kv: KV, deck: DeckState): Promise<void> {
   return kv.set({ [DECK_KEY]: deck });
 }
 
-/** In-memory focus session persisted across service-worker evictions. */
-export interface StoredSession {
+/** Visible-window focus sessions persisted across service-worker evictions. */
+export interface StoredSessions {
+  sessions: SessionMap;
+  savedAt: number;
+}
+
+/** Legacy single-focused-window shape stored by pre-multi-monitor builds. */
+interface LegacyStoredSession {
   session: ActiveSession | null;
   savedAt: number;
 }
 
-export async function loadActiveSession(kv: KV): Promise<StoredSession | undefined> {
-  return rawGet<StoredSession>(kv, SESSION_KEY);
+export async function loadSessions(kv: KV): Promise<StoredSessions | undefined> {
+  const raw = await rawGet<StoredSessions | LegacyStoredSession>(kv, SESSION_KEY);
+  if (!raw) return undefined;
+  if ('sessions' in raw) return raw;
+  const legacy = raw.session;
+  return legacy
+    ? { sessions: { [String(legacy.windowId)]: legacy }, savedAt: raw.savedAt }
+    : { sessions: {}, savedAt: raw.savedAt };
 }
 
-export function saveActiveSession(
-  kv: KV,
-  session: StoredSession['session'],
-  savedAt: number,
-): Promise<void> {
-  return kv.set({ [SESSION_KEY]: { session, savedAt } });
+export function saveSessions(kv: KV, sessions: SessionMap, savedAt: number): Promise<void> {
+  return kv.set({ [SESSION_KEY]: { sessions, savedAt } });
 }

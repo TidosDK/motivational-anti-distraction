@@ -14,8 +14,12 @@ The friction is the feature.
 - **Block list with budgets** — add sites by domain (subdomains included).
   Optional per-site daily limit (e.g. 60 min YouTube, 30 min Instagram) plus
   a combined budget across all blocked sites (e.g. 2 h total).
-- **Foreground-only tracking** — minutes count only while the tab is the
-  active tab of the focused window. Background tabs are free.
+- **Foreground-only tracking (multi-monitor aware)** — minutes count while
+  the site is the active tab of **any visible window**, so a YouTube window
+  on your second monitor keeps counting while you work on the first.
+  Background tabs and minimized windows are free. (A window fully covered by
+  another still counts — browsers can't detect that — and screen lock isn't
+  detected either; counting is deliberately generous.)
 - **Configurable day reset** — the usage day flips at an hour you pick
   (default 05:00), so 1 a.m. browsing counts toward the night it started in.
   All counters, passes and stats roll together at that boundary.
@@ -68,8 +72,10 @@ checklist: see [`docs/testing.md`](docs/testing.md).
 
 ## How it works (short version)
 
-A Manifest V3 service worker watches tab/window focus and accrues foreground
-seconds per blocked domain in `chrome.storage.local`. When a site's meter
+A Manifest V3 service worker tracks every visible window's active tab and
+accrues foreground seconds per blocked domain in `chrome.storage.local` (one
+session per window, so unfocused windows on other monitors still count; a
+domain shown in several windows charges once). When a site's meter
 crosses its limit or the combined total crosses the budget, a
 `declarativeNetRequest` session rule redirects its main-frame navigations to
 the interstitial page. The interstitial runs the ceremony (confessions +

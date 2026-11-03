@@ -1,12 +1,21 @@
 /**
- * Foreground-only session accounting (design D3). The service worker keeps at
- * most one active session: the foreground tab of the focused window. All
- * transitions are pure so they can be unit-tested without chrome APIs.
+ * Foreground session accounting across multiple windows (design D3, revised
+ * for multi-monitor use). "Foreground" means "active tab of any *visible*
+ * window": the worker keeps one session per window in a map, so a blocked
+ * site on a second monitor keeps accruing while the user works elsewhere.
+ * All transitions are pure so they can be unit-tested without chrome APIs.
+ *
+ * Same-domain union invariant: usage must charge once per wall-clock second
+ * even when several windows show the same domain. Every mutation first
+ * flushes the pending union `[oldest anchor .. now]` for the affected domain
+ * and re-anchors all of that domain's sessions to `now`. Live sessions of one
+ * domain therefore always share an anchor, so opening, closing, or switching
+ * a window can neither double-charge nor drop time.
  */
 
-import type { ActiveSession } from '../shared/types';
+import type { ActiveSession, SessionMap } from '../shared/types';
 
-export type { ActiveSession };
+export type { ActiveSession, SessionMap };
 
 /** A wall-clock segment to charge to a domain. */
 export interface Segment {
@@ -15,44 +24,75 @@ export interface Segment {
   toMs: number;
 }
 
-/** Seconds to charge to a domain, or null when nothing accrued. */
-export function closeSession(
-  session: ActiveSession | null,
-  nowMs: number,
-): Segment | null {
-  if (!session) return null;
-  if (nowMs <= session.sinceMs) return null;
-  return { domain: session.domain, fromMs: session.sinceMs, toMs: nowMs };
+/** True while at least one window has a counted session. */
+export function hasAnySession(sessions: SessionMap): boolean {
+  return Object.keys(sessions).length > 0;
 }
 
 /**
- * Move focus to `domain` in (windowId, tabId), or to nothing when domain is
- * null. Returns the closed segment (to accrue) and the new active session.
+ * Charge `domain`'s pending union time (oldest anchor -> now, at most once)
+ * and re-anchor every session of that domain to `now`. Returns a null segment
+ * when no window currently shows the domain.
  */
-export function switchFocus(
-  current: ActiveSession | null,
+export function flushDomain(
+  sessions: SessionMap,
+  domain: string,
+  nowMs: number,
+): { segment: Segment | null; next: SessionMap } {
+  const keys = Object.keys(sessions).filter((w) => sessions[w].domain === domain);
+  if (keys.length === 0) return { segment: null, next: sessions };
+  const fromMs = Math.min(...keys.map((w) => sessions[w].sinceMs));
+  const next: SessionMap = { ...sessions };
+  for (const k of keys) next[k] = { ...next[k], sinceMs: nowMs };
+  return { segment: nowMs > fromMs ? { domain, fromMs, toMs: nowMs } : null, next };
+}
+
+/**
+ * Replace the session for `windowId`, or remove it when `domain` is null.
+ * Flushes the window's previous domain union first so shared-domain time is
+ * charged exactly once.
+ */
+export function setWindowSession(
+  sessions: SessionMap,
+  windowId: number,
   domain: string | null,
   tabId: number,
-  windowId: number,
   nowMs: number,
-): { closed: ReturnType<typeof closeSession>; next: ActiveSession | null } {
-  const closed = closeSession(current, nowMs);
-  const next =
-    domain != null ? { windowId, tabId, domain, sinceMs: nowMs } : null;
-  return { closed, next };
+): { segment: Segment | null; next: SessionMap } {
+  const key = String(windowId);
+  let map = { ...sessions };
+  let segment: Segment | null = null;
+  const cur = map[key];
+  if (cur) {
+    const f = flushDomain(map, cur.domain, nowMs);
+    segment = f.segment;
+    map = f.next;
+  }
+  if (domain != null) map[key] = { windowId, tabId, domain, sinceMs: nowMs };
+  else delete map[key];
+  return { segment, next: map };
 }
 
-/**
- * Alarm tick while a blocked site stays focused: accrue since -> now and
- * re-anchor the session so a worker death loses at most one tick of data.
- */
-export function tickSession(
-  session: ActiveSession,
+/** Drop a window's session (window closed or minimized); flushes its domain. */
+export function closeWindowSession(
+  sessions: SessionMap,
+  windowId: number,
   nowMs: number,
-): { accrued: Segment; next: ActiveSession } {
-  const accrued = closeSession(session, nowMs);
-  return {
-    accrued: accrued ?? { domain: session.domain, fromMs: session.sinceMs, toMs: session.sinceMs },
-    next: { ...session, sinceMs: nowMs },
-  };
+): { segment: Segment | null; next: SessionMap } {
+  return setWindowSession(sessions, windowId, null, -1, nowMs);
+}
+
+/** Alarm tick: flush every visible domain once and re-anchor all sessions. */
+export function tickAll(
+  sessions: SessionMap,
+  nowMs: number,
+): { segments: Segment[]; next: SessionMap } {
+  let map = sessions;
+  const segments: Segment[] = [];
+  for (const domain of new Set(Object.values(sessions).map((s) => s.domain))) {
+    const f = flushDomain(map, domain, nowMs);
+    if (f.segment) segments.push(f.segment);
+    map = f.next;
+  }
+  return { segments, next: map };
 }

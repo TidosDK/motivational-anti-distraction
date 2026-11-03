@@ -6,7 +6,7 @@ manual checklist to run in Brave itself.
 ## Automated suite
 
 ```bash
-npm test          # 110 unit tests (day math, storage, exhaustion, accounting,
+npm test          # 119 unit tests (day math, storage, exhaustion, accounting,
                   # enforcement rules, quote deck, stats view)
 npm run build     # build dist/
 node tests-e2e/verify-4.2.mjs   # each verification, in order (they are slow:
@@ -17,7 +17,7 @@ node tests-e2e/verify-6.1.mjs
 node tests-e2e/verify-6.3.mjs
 node tests-e2e/verify-7.1.mjs
 node tests-e2e/verify-9.3.mjs   # ~2 min: waits for a real 1-min pass session
-                                # to expire
+node tests-e2e/verify-10.3.mjs  # ~4.5 min: two windows, real-time accrual
 ```
 
 The e2e verifications drive a real Chromium with `dist/` loaded as an
@@ -27,11 +27,11 @@ Brave binary; on the development machine Brave refuses to start MV3 service
 workers under automation flags, so the suite defaults to Chromium — same
 engine family.
 
-### Verification results — 2026-10-31 (dev machine, Chromium 156)
+### Verification results — 2026-11-03 (dev machine, Chromium)
 
 | Verification | Covers | Result |
 |---|---|---|
-| unit suite (110 tests) | day math, lazy day-roll + pruning, exhaustion incl. timed passes, foreground accounting, dNR regex + rule diff, quote deck, stats view | PASS |
+| unit suite (119 tests) | day math, lazy day-roll + pruning, exhaustion incl. timed passes, multi-window accounting incl. same-domain dedupe, storage session map, dNR regex + rule diff, quote deck, stats view | PASS |
 | verify-4.2 | 60s foreground accrued in real time; background tab accrued ~0 | PASS |
 | verify-5.1 | exhausted site → dNR rule → real navigation redirected (incl. subdomain); budget recovery removes rule | PASS |
 | verify-5.2 | pass spend unblocks only that site; day roll expires the pass; re-exhausted site blocks again | PASS |
@@ -40,6 +40,7 @@ engine family.
 | verify-6.3 | end-to-end: ceremony → override → navigates to real site; timed pass spent, override logged, rule removed; hard-block display when no passes | PASS |
 | verify-7.1 | stats page from seeded fixtures: today's meters/limits/passes, badge, override timestamps, history rows, live re-render | PASS |
 | verify-9.3 | timed day-pass: spend unblocks, in-session nav does not double-spend, session lapse auto-reblocks (pass-expire alarm), next navigation re-blocks and next pass is offered | PASS |
+| verify-10.3 | multi-monitor: unfocused second window accrues in real time; same domain in two windows charges once (not doubled); closing a window stops its site while others keep accruing | PASS |
 
 ## Manual checklist (Brave)
 
@@ -54,8 +55,14 @@ A site list you actually use makes the limits feel real; `example.com` /
    `example.com` in the foreground until the meter passes it; next visit (or a
    reload, after ≤1 min tick) lands on the interstitial. `www.example.com`
    behaves the same.
-3. **Background doesn't count** — leave a blocked tab open in a background
-   window for 5+ minutes; stats meter barely moves.
+3. **Background doesn't count** — leave a blocked site as a *non-active* tab
+   in a window for 5+ minutes (browse another tab in that window); its stats
+   meter barely moves. Same for a *minimized* window showing a blocked site.
+ 3b. **Multi-monitor counts** — open `example.com` as the active tab of its
+   own window, then do all your clicking/typing in a *different* window
+   (or on another monitor) for ~3 minutes. The `example.com` meter must
+   climb at real time even though its window never has focus. Minimize that
+   window: counting stops; restore: it resumes.
 4. **Ceremony** — quote shows, timer runs while you read, Quick Override
    stays disabled until the 30s AND all four confessions. Reload restarts the
    timer from 30.
@@ -94,19 +101,37 @@ Fill this table after running the steps above:
 
 | # | Step | Result | Notes |
 |---|---|---|---|
-| 1 | Settings persist | ✅ | Also re-check the new "Day-pass session length" field persists |
-| 2 | Exhaust → interstitial | ⚠️ | Works, but block lands 1–3 min after a 1-min limit (see triage). Quote enlarged 2026-10-31 |
-| 3 | Background doesn't count | ✅ | |
+| 1 | Settings persist | ✅ | 2026-11-03 "seems to work" (incl. day-pass session length field) |
+| 2 | Exhaust → interstitial | ⚠️ | Works; block lands 1–3 min after a 1-min limit (accepted: ticks ≤1 min, redirect on next navigation) |
+| 3 | Background doesn't count | ☐ | Re-test: semantics now "non-active tab / minimized window" (see triage 2026-11-03) |
+| 3b | Multi-monitor counts | ☐ | New: unfocused window accrues; minimize stops; restore resumes |
 | 4 | Ceremony gates | ✅ | |
-| 5 | Day-pass scope | ☐ | Re-test under timed model: override unblocks only the chosen site |
-| 5b | Pass session expiry | ☐ | New (timed model): 1-min session re-blocks on next nav, 2nd pass offered, no double-spend |
+| 5 | Day-pass scope | ✅ | 2026-11-03 "the daypass seems to work fine" |
+| 5b | Pass session expiry | ✅ | Covered by user's 2026-11-03 day-pass confirmation |
 | 6 | Hard block | ☐ | Re-test: with all passes spent, stays blocked until day rolls |
-| 7 | Day roll | ☐ | Deferred by user |
-| 8 | Night owl | ☐ | Deferred by user |
+| 7 | Day roll | ✅ | 2026-11-03 "works fine" |
+| 8 | Night owl | ✅ | 2026-11-03 "resets at the defined time" |
 | 9 | Offline blocking | — | Not tested |
 | 10 | Stats | ✅ | |
 | 11 | Brave Shields | — | Not tested; no observed interference |
 | 12 | Worker eviction | ☐ | Instructions rewritten 2026-10-31 — please retest |
+
+### Findings & triage — 2026-11-03 (user run, Brave)
+
+- **Time under-counted with multiple monitors** ("only counts when I move the
+  mouse"): real semantics gap — counting was tied to the *focused* window, so
+  an unfocused YouTube window on a second monitor stopped accruing. **Fixed**
+  (tasks 10.1–10.3): foreground is now "active tab of any *visible* window";
+  every window counts independently, minimized windows don't, and a domain
+  open in several windows charges once. Re-test with steps 3/3b.
+- **Accepted limitations of the new counting**: a window fully covered by
+  another window on the same monitor still counts (browsers expose no
+  occlusion signal), and screen lock is not detected. Deliberately generous;
+  revisit if it bothers you in practice.
+- **Confirmed working by user 2026-11-03**: settings persist, day-pass
+  (timed), day roll, night-owl reset.
+- **Still open in Brave**: steps 3/3b (new counting), 6 (hard block under the
+  timed model), 12 (worker eviction).
 
 ### Findings & triage — 2026-10-31 (user run, Brave)
 
@@ -130,16 +155,9 @@ Fill this table after running the steps above:
   tested later by user.
 
 
-Feedback based on steps:
-1. Works fine
-2. I set the limit to 1 minute for example.com, but it seemed like it took way more than 1 minutes. I also added youtube.com with a 1 minute limit, which after 2-3 minutes did block. The example.com domain did block after some time. The "motivational site" where I have to wait 30 seconds did work and was great. I would like for the quoute to be larger so it is more easily seen. It seemed after I went through the "motivational site" for example.com, it wouldn't block the site again (I don't know if I want it to keep blocking the site or not. I want to discuss this at some point).
-3. Leaving the website open in the background isn't tracked.
-4. Works fine
-5. If you mean that both youtube.com and reddit.com is blocked, and I override youtube.com which only unblocks youtube.com and not reddit.com, then yes it works fine.
-6. If you mean that it should block the site again after some time, then no, it doesn't block that site again. example.com keeps being unblocked after using the single day-pass. I did try with a site that had no day-passes at all in which it works great.
-7. Will test later, not now.
-8. Will test later, not now.
-9. Won't test.
-10. Yes, that works great.
-11. Won't test, but doesn't seem to affect.
-12. I don't understand the instructions.
+New feedback:
+1. Seems to work
+2. I have tested the extension for some days now, and there is some major issues with counting the time. When I have a Youtube video running, it doesn't count all of the time. It only seems to count when I move the mouse or something. I want it to always count the time for when I have a website open, but ignore tabs that are in the background. I have multiple monitors so I might have a youtube video open on one screen and something else on the other. It should count the Youtube video also as I can still watch videos when they are on the other screen.
+5. The daypass seems to work fine.
+7. The day roll works fine.
+8. The night owl works fine. It resets at the defined time.
