@@ -144,42 +144,72 @@ async function dropWindow(windowId: number): Promise<void> {
 
 // --- tab / window events -------------------------------------------------------
 // Every visible window counts; focus changes are deliberately NOT tracked.
+// All handlers first await `ready`: when an event (or the tick alarm) WAKES
+// the worker, init() is still mid-flight, and acting on the not-yet-restored
+// session map would drop or double-anchor live sessions — that race used to
+// silently skip accruals while a video played with no further events.
 
 chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
-  void chrome.tabs.get(tabId).then((tab) => updateWindowTab(windowId, tabId, tab.url)).catch(() => {});
+  void (async () => {
+    await ready;
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      await updateWindowTab(windowId, tabId, tab.url);
+    } catch {
+      /* tab vanished */
+    }
+  })();
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (!tab.active) return;
   if (changeInfo.url !== undefined || changeInfo.status === 'complete') {
-    void updateWindowTab(tab.windowId, tabId, tab.url);
+    void (async () => {
+      await ready;
+      await updateWindowTab(tab.windowId, tabId, tab.url);
+    })();
   }
 });
 
 chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
-  const cur = sessions[String(removeInfo.windowId)];
-  if (cur?.tabId !== tabId) return; // a background tab closed; nothing tracked
-  if (removeInfo.isWindowClosing) void dropWindow(removeInfo.windowId);
-  else void trackActiveTabOf(removeInfo.windowId);
+  void (async () => {
+    await ready;
+    const cur = sessions[String(removeInfo.windowId)];
+    if (cur?.tabId !== tabId) return; // a background tab closed; nothing tracked
+    if (removeInfo.isWindowClosing) await dropWindow(removeInfo.windowId);
+    else await trackActiveTabOf(removeInfo.windowId);
+  })();
 });
 
 chrome.windows.onRemoved.addListener((windowId) => {
-  minimizedWindows.delete(windowId);
-  void dropWindow(windowId);
+  void (async () => {
+    await ready;
+    minimizedWindows.delete(windowId);
+    await dropWindow(windowId);
+  })();
 });
 
 // Minimize/restore (also fires on resize/maximize — harmless re-anchoring).
-// Chrome passes the full Window, whose `state` tells us about minimize.
-chrome.windows.onBoundsChanged.addListener((window) => {
-  const windowId = window.id;
-  if (windowId == null) return;
-  if (window.state === 'minimized') {
-    minimizedWindows.add(windowId);
-    void dropWindow(windowId);
-  } else {
-    minimizedWindows.delete(windowId);
-    void trackActiveTabOf(windowId);
-  }
+// Chrome >= 148 passes the full Window; older Chrome/Brave pass the windowId,
+// so the state is always re-queried instead of trusted from the event.
+chrome.windows.onBoundsChanged.addListener((windowOrId: chrome.windows.Window | number) => {
+  void (async () => {
+    await ready;
+    const windowId = typeof windowOrId === 'number' ? windowOrId : windowOrId.id;
+    if (windowId == null) return;
+    try {
+      const w = await chrome.windows.get(windowId);
+      if (w.state === 'minimized') {
+        minimizedWindows.add(windowId);
+        await dropWindow(windowId);
+      } else {
+        minimizedWindows.delete(windowId);
+        await trackActiveTabOf(windowId);
+      }
+    } catch {
+      /* window vanished */
+    }
+  })();
 });
 
 // --- alarms --------------------------------------------------------------------
@@ -187,6 +217,11 @@ chrome.windows.onBoundsChanged.addListener((window) => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === TICK_ALARM) {
     void (async () => {
+      // On an alarm wake-up init() must finish first: until it re-enumerates
+      // the visible windows the session map is empty and there is nothing to
+      // flush (clearing the alarm based on that empty map was the bug that
+      // froze stats during passive video watching).
+      await ready;
       if (!hasAnySession(sessions)) {
         await chrome.alarms.clear(TICK_ALARM);
         return;
@@ -336,7 +371,12 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  void init();
+  void init().catch((err) => console.error('startup init failed', err));
 });
 
-init().catch((err) => console.error('init failed', err));
+/**
+ * Resolves once the worker has (re)built the live session map. Every event
+ * and alarm handler awaits this, so nobody ever acts on the empty map that
+ * exists at the instant a dormant worker wakes up.
+ */
+const ready = init().catch((err) => console.error('init failed', err));

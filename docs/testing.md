@@ -27,7 +27,7 @@ Brave binary; on the development machine Brave refuses to start MV3 service
 workers under automation flags, so the suite defaults to Chromium — same
 engine family.
 
-### Verification results — 2026-11-03 (dev machine, Chromium)
+### Verification results — 2026-11-08 (dev machine, Chromium)
 
 | Verification | Covers | Result |
 |---|---|---|
@@ -41,6 +41,7 @@ engine family.
 | verify-7.1 | stats page from seeded fixtures: today's meters/limits/passes, badge, override timestamps, history rows, live re-render | PASS |
 | verify-9.3 | timed day-pass: spend unblocks, in-session nav does not double-spend, session lapse auto-reblocks (pass-expire alarm), next navigation re-blocks and next pass is offered | PASS |
 | verify-10.3 | multi-monitor: unfocused second window accrues in real time; same domain in two windows charges once (not doubled); closing a window stops its site while others keep accruing | PASS |
+| verify-10.5 | passive watching: with zero interaction for 95s, both windows' usage keeps climbing via alarm ticks only (regression for the worker wake-up race that froze stats; reads via a detached extension window so they can't mask it) | PASS |
 
 ## Manual checklist (Brave)
 
@@ -114,7 +115,23 @@ Fill this table after running the steps above:
 | 9 | Offline blocking | — | Not tested |
 | 10 | Stats | ✅ | |
 | 11 | Brave Shields | — | Not tested; no observed interference |
-| 12 | Worker eviction | ☐ | Instructions rewritten 2026-10-31 — please retest |
+| 12 | Worker eviction | ☐ | Wake-race fixed 2026-11-08 (verify-10.5 covers it) — please retest in Brave |
+
+### Findings & triage — 2026-11-08 (user: "still doesn't count properly")
+
+- **Stats freeze while passively watching (e.g. a video)**: real bug found —
+  a **worker wake-up race**. The MV3 service worker dies after ~30s idle;
+  when the 60s tick alarm woke it, the alarm handler ran *before* `init()`
+  had rebuilt the session map, saw zero sessions, cleared the alarm and
+  skipped the flush. Nothing counted again until some event (click, tab
+  switch, navigation) restarted the machinery — so a purely passive window
+  froze. Fixed: every event/alarm handler now awaits a `ready` gate that
+  resolves once the session map is rebuilt. Regression test: `verify-10.5`.
+- Also fixed: `windows.onBoundsChanged` callback-signature compatibility
+  (newer Chrome passes a Window object, older Brave a windowId — the handler
+  now accepts both).
+- **Please reload the extension (⟳) in `brave://extensions` and re-test
+  steps 3, 3b, 6, 12** — especially 3b with a video playing untouched.
 
 ### Findings & triage — 2026-11-03 (user run, Brave)
 
