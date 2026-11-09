@@ -15,7 +15,7 @@
 ## 3. Verification and docs
 
 - [x] 3.1 Add `tests-e2e/verify-popup.mjs` (real Chromium + built dist/, popup opened as extension page): seed settings + state fixtures → assert per-site remaining, exhausted and no-limit rows, combined remaining, reset label, options link present; then change storage while the popup is open → assert live re-render; verify script passes
-- [ ] 3.2 Manual check in Brave: click icon → popup shows remaining times for configured sites, link opens options; record in `docs/testing.md`; update README Features/usage to mention the popup
+- [x] 3.2 Manual check in Brave: click icon → popup shows remaining times for configured sites, link opens options; record in `docs/testing.md`; update README Features/usage to mention the popup
 
 ## Workflow follow-up
 

@@ -126,7 +126,7 @@ Fill this table after running the steps above:
 | 10 | Stats | ✅ | |
 | 11 | Brave Shields | — | Accepted untested (2026-11-09, by agreement); no interference observed in weeks of daily driving |
 | 12 | Worker eviction | ✅ | 2026-11-09 confirmed in Brave after the wake-race fix (verify-10.5 covers it in Chromium) |
-| 13 | Remaining-time popup | — | Pending user Brave check (verify-popup covers it in Chromium, 2026-11-09) |
+| 13 | Remaining-time popup | ✅ | 2026-11-10 user confirmed in Brave: "When I click the extension icon, it shows the menu and the correct information" (incl. orange icon + version display) |
 
 ### Findings & triage — 2026-11-08 (user: "still doesn't count properly")
 
