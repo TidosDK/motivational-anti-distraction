@@ -6,8 +6,8 @@ manual checklist to run in Brave itself.
 ## Automated suite
 
 ```bash
-npm test          # 119 unit tests (day math, storage, exhaustion, accounting,
-                  # enforcement rules, quote deck, stats view)
+npm test          # 126 unit tests (day math, storage, exhaustion, accounting,
+                  # enforcement rules, quote deck, stats view, popup view)
 npm run build     # build dist/
 node tests-e2e/verify-4.2.mjs   # each verification, in order (they are slow:
 node tests-e2e/verify-5.1.mjs   # they observe real alarms/ceremony timers)
@@ -18,6 +18,7 @@ node tests-e2e/verify-6.3.mjs
 node tests-e2e/verify-7.1.mjs
 node tests-e2e/verify-9.3.mjs   # ~2 min: waits for a real 1-min pass session
 node tests-e2e/verify-10.3.mjs  # ~4.5 min: two windows, real-time accrual
+node tests-e2e/verify-popup.mjs # remaining-time popup render + live update
 ```
 
 The e2e verifications drive a real Chromium with `dist/` loaded as an
@@ -31,7 +32,7 @@ engine family.
 
 | Verification | Covers | Result |
 |---|---|---|
-| unit suite (119 tests) | day math, lazy day-roll + pruning, exhaustion incl. timed passes, multi-window accounting incl. same-domain dedupe, storage session map, dNR regex + rule diff, quote deck, stats view | PASS |
+| unit suite (126 tests) | day math, lazy day-roll + pruning, exhaustion incl. timed passes, multi-window accounting incl. same-domain dedupe, storage session map, dNR regex + rule diff, quote deck, stats view, popup view | PASS |
 | verify-4.2 | 60s foreground accrued in real time; background tab accrued ~0 | PASS |
 | verify-5.1 | exhausted site → dNR rule → real navigation redirected (incl. subdomain); budget recovery removes rule | PASS |
 | verify-5.2 | pass spend unblocks only that site; day roll expires the pass; re-exhausted site blocks again | PASS |
@@ -42,6 +43,7 @@ engine family.
 | verify-9.3 | timed day-pass: spend unblocks, in-session nav does not double-spend, session lapse auto-reblocks (pass-expire alarm), next navigation re-blocks and next pass is offered | PASS |
 | verify-10.3 | multi-monitor: unfocused second window accrues in real time; same domain in two windows charges once (not doubled); closing a window stops its site while others keep accruing | PASS |
 | verify-10.5 | passive watching: with zero interaction for 95s, both windows' usage keeps climbing via alarm ticks only (regression for the worker wake-up race that froze stats; reads via a detached extension window so they can't mask it) | PASS |
+| verify-popup | remaining-time popup from seeded fixtures: per-site remaining, exhausted + no-limit rows, combined remaining, reset label, options link; live re-render on usage accrual and settings edits; empty state | PASS (2026-11-09) |
 
 ## Manual checklist (Brave)
 
@@ -97,6 +99,13 @@ A site list you actually use makes the limits feel real; `example.com` /
     happening. Then open the stats page: the site should show ≈5 minutes
     (±1 min tick tolerance), *not* just the first 30 seconds. If counting
     stopped at the eviction, that's a failure.
+ 13. **Remaining-time popup** — left-click the toolbar icon: every blocked
+     site is listed with its time left today ("40m left of 60m · 20m used");
+     an exhausted site shows an "exhausted" badge rather than disappearing; a
+     site with no per-site limit says "no per-site limit". The combined-budget
+     row counts down from the total budget, the reset time is shown, and
+     "Open Options" opens the settings page. Keep the popup open while a
+     blocked site plays in another window: its remaining time ticks down.
 
 Fill this table after running the steps above:
 
@@ -116,6 +125,7 @@ Fill this table after running the steps above:
 | 10 | Stats | ✅ | |
 | 11 | Brave Shields | — | Accepted untested (2026-11-09, by agreement); no interference observed in weeks of daily driving |
 | 12 | Worker eviction | ✅ | 2026-11-09 confirmed in Brave after the wake-race fix (verify-10.5 covers it in Chromium) |
+| 13 | Remaining-time popup | — | Pending user Brave check (verify-popup covers it in Chromium, 2026-11-09) |
 
 ### Findings & triage — 2026-11-08 (user: "still doesn't count properly")
 

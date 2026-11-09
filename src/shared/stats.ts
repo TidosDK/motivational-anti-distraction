@@ -111,3 +111,63 @@ export function buildStatsView(
     history: historyDays,
   };
 }
+
+export interface PopupSiteRow {
+  domain: string;
+  usedSec: number;
+  limitMin: number | null;
+  /** Time left against the per-site limit; null = no per-site limit. Never < 0. */
+  remainingSec: number | null;
+  /** 0-1 clamped; null when there is no per-site limit. */
+  fraction: number | null;
+}
+
+export interface PopupView {
+  sites: PopupSiteRow[];
+  combinedUsedSec: number;
+  combinedBudgetMin: number;
+  /** Combined budget time left; never < 0. */
+  combinedRemainingSec: number;
+  combinedFraction: number;
+  /** Epoch ms of the next usage-day reset. */
+  resetsAt: number;
+}
+
+/**
+ * Pure projection for the toolbar popup: remaining time per blocked site and
+ * for the combined budget. Sites without a per-site limit carry `null`
+ * remaining (only the combined budget governs them). Domains used today but
+ * since removed from the list still appear, like in the stats view.
+ */
+export function buildPopupView(settings: Settings, state: DayState, now: number): PopupView {
+  const row = (domain: string, usedSec: number, limitMin: number | null): PopupSiteRow => ({
+    domain,
+    usedSec,
+    limitMin,
+    remainingSec: limitMin != null ? Math.max(0, limitMin * 60 - usedSec) : null,
+    fraction: limitMin ? Math.min(1, usedSec / (limitMin * 60)) : null,
+  });
+
+  const sites: PopupSiteRow[] = settings.sites.map((s) =>
+    row(s.domain, state.perSiteSeconds[s.domain] ?? 0, s.limitMin),
+  );
+
+  // Sites used today but removed from the block list still show up.
+  const known = new Set(settings.sites.map((s) => s.domain));
+  for (const [domain, usedSec] of Object.entries(state.perSiteSeconds)) {
+    if (!known.has(domain) && usedSec > 0) sites.push(row(domain, usedSec, null));
+  }
+  sites.sort((a, b) => a.domain.localeCompare(b.domain));
+
+  const combinedUsedSec = Object.values(state.perSiteSeconds).reduce((a, b) => a + b, 0);
+  const combinedBudgetSec = settings.combinedBudgetMin * 60;
+
+  return {
+    sites,
+    combinedUsedSec,
+    combinedBudgetMin: settings.combinedBudgetMin,
+    combinedRemainingSec: Math.max(0, combinedBudgetSec - combinedUsedSec),
+    combinedFraction: Math.min(1, combinedUsedSec / combinedBudgetSec),
+    resetsAt: nextReset(now, settings.resetHour),
+  };
+}

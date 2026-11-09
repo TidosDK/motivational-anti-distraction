@@ -81,3 +81,12 @@ ul.overrides { margin: 0.5rem 0 0; padding-left: 1.25rem; color: var(--muted); f
 .history-total { font-variant-numeric: tabular-nums; }
 .history-detail { min-width: 0; overflow-wrap: anywhere; }
 .history-overrides { color: var(--accent); font-size: 0.85rem; }
+
+/* Toolbar popup */
+body.popup { width: 320px; }
+#popup { padding: 0.75rem 0.9rem 0.9rem; }
+#popup h1 { font-size: 1.05rem; margin: 0 0 0.15rem; }
+#popup .usage-row { gap: 0.6rem; padding: 0.4rem 0; }
+#popup .meter { width: 72px; }
+.popup-footer { margin-top: 0.75rem; border-top: 1px solid var(--line); padding-top: 0.6rem; }
+.popup-footer a { color: var(--accent); text-decoration: none; font-size: 0.9rem; }

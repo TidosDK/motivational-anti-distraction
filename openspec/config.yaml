@@ -1,5 +1,13 @@
 schema: spec-driven
 
+context: |
+  Versioning: package.json is the single version source (the build stamps
+  dist/manifest.json). Bump the patch (`npm run version:patch`) after every
+  committed implementation change so the new number is visible in Brave;
+  bump the minor (`npm run version:minor`) only when an OpenSpec change is
+  finished/archived. `npm version` needs a clean tree: commit first, then
+  bump, then `npm run build`.
+
 # Project context (optional)
 # Add only constraints that should guide OpenSpec artifacts and workflows.
 # Include constraints an agent cannot infer by reading the code.
@@ -30,3 +38,15 @@ schema: spec-driven
 #     archive:
 #       guidance:
 #         - Summarize the archive outcome before finishing
+
+operations:
+  apply:
+    guidance:
+      - After completing implementation commits for a task group, bump the
+        patch version (`npm run version:patch`) and rebuild, so the version
+        number visible in Brave changes with every change.
+  archive:
+    guidance:
+      - As part of finishing a change, bump the minor version
+        (`npm run version:minor`) and rebuild before or with the archive.
+

@@ -55,6 +55,7 @@ export default defineConfig({
         options: resolve(root, 'options.html'),
         interstitial: resolve(root, 'interstitial.html'),
         stats: resolve(root, 'stats.html'),
+        popup: resolve(root, 'popup.html'),
       },
     },
   },

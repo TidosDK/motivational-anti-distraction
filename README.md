@@ -38,6 +38,9 @@ The friction is the feature.
   logged with timestamps. No passes left ⇒ hard block until the day rolls.
 - **Usage stats** — today's per-site meters vs limits, combined budget bar,
   passes used, override log, and 31 days of history.
+- **Toolbar popup** — click the icon for a glance at the time remaining today
+  per site and on the combined budget (live-updating while open), with a
+  shortcut to the options page.
 
 All data stays in `chrome.storage.local` on your machine. No network access,
 no analytics, zero runtime dependencies.
@@ -58,7 +61,8 @@ npm test           # unit tests
 2. Open `brave://extensions` (or `chrome://extensions`).
 3. Enable **Development mode** (top-right toggle).
 4. Click **Load unpacked** and select the `dist/` directory.
-5. Right-click the extension icon → Options to add your first blocked site.
+5. Click the extension icon — the popup shows the time remaining today per
+   site — then **Open Options** to add your first blocked site.
    Remember: nothing is blocked until you add domains and exhaust their
    budgets.
 
@@ -69,21 +73,22 @@ reload blocked tabs.
 
 `package.json` holds the one and only version. The build stamps it into
 `dist/manifest.json` automatically — `public/manifest.json` deliberately has
-no version field, so the two can never drift.
+no version field, so the two can never drift. The extension card in
+`brave://extensions` shows that stamped version.
 
-To ship a new version (after committing all work, since `npm version` needs a
-clean tree):
+The rhythm:
 
-```bash
-npm run version:patch   # 0.1.0 → 0.1.1 (fixes)
-npm run version:minor   # 0.1.0 → 0.2.0 (features)
-npm run version:major   # 0.1.0 → 1.0.0 (breaking)
-npm run build           # manifest picks up the new version
-```
+- **Every change bumps the patch.** After committing implementation work
+  (any change you want visible in Brave), run
+  `npm run version:patch   # 0.1.0 → 0.1.1` then `npm run build`.
+- **A finished OpenSpec change bumps the minor.** When a change is complete
+  and being archived, run `npm run version:minor   # 0.1.x → 0.2.0`.
+- `npm run version:major   # 0.x → 1.0.0` stays a deliberate, manual decision.
 
-Each script bumps `package.json`, creates a release commit and a git tag in
-one step. The build fails loudly if the version isn't a valid Chrome manifest
-version (1–4 dot-separated integers — no `-beta` suffixes).
+Each `version:*` script bumps `package.json`, creates a release commit and a
+git tag in one step. `npm version` needs a clean tree: commit work first,
+then bump. The build fails loudly if the version isn't a valid Chrome
+manifest version (1–4 dot-separated integers — no `-beta` suffixes).
 
 ## Testing
 

@@ -12,7 +12,8 @@
     "open_in_tab": true
   },
   "action": {
-    "default_title": "Motivational Anti-Distraction"
+    "default_title": "Motivational Anti-Distraction",
+    "default_popup": "popup.html"
   },
   "web_accessible_resources": [
     {

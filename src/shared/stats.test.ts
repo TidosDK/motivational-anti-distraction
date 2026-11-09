@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { dayKey, usageDayStart } from './dayMath';
+import { dayKey, nextReset, usageDayStart } from './dayMath';
 import {
   accrueForeground,
+  freshState,
   loadHistory,
   loadState,
   memoryKV,
   recordOverride,
   saveSettings,
 } from './storage';
-import { buildStatsView, formatDuration } from './stats';
+import { buildPopupView, buildStatsView, formatDuration } from './stats';
 import { DEFAULT_SETTINGS, SCHEMA_VERSION } from './types';
 import type { Settings } from './types';
 
@@ -135,5 +136,81 @@ describe('buildStatsView', () => {
     expect(view.history).toEqual([]);
     expect(view.today.overrides).toEqual([]);
     expect(view.today.combinedUsedSec).toBe(0);
+  });
+});
+
+describe('buildPopupView', () => {
+  // Fresh day state with the given per-site seconds, no persistence needed.
+  const stateWith = (perSiteSeconds: Record<string, number>) => ({
+    ...freshState(usageDayStart(NOW, 5)),
+    perSiteSeconds,
+  });
+  const NOW = new Date(2026, 9, 30, 20, 0, 0).getTime();
+
+  it('shows remaining time per site (limit minus used, floored at 0)', () => {
+    const view = buildPopupView(
+      settings(),
+      stateWith({ 'youtube.com': 20 * 60, 'instagram.com': 30 * 60 }),
+      NOW,
+    );
+    const yt = view.sites.find((r) => r.domain === 'youtube.com')!;
+    expect(yt.remainingSec).toBeCloseTo(40 * 60, 0);
+    expect(yt.fraction).toBeCloseTo(20 / 60, 2);
+    // Exhausted at exactly the limit: shown, remaining 0, not hidden.
+    const ig = view.sites.find((r) => r.domain === 'instagram.com')!;
+    expect(ig.remainingSec).toBe(0);
+    expect(ig.fraction).toBe(1);
+  });
+
+  it('floors remaining at 0 when usage exceeds the limit', () => {
+    const view = buildPopupView(settings(), stateWith({ 'youtube.com': 90 * 60 }), NOW);
+    expect(view.sites.find((r) => r.domain === 'youtube.com')!.remainingSec).toBe(0);
+  });
+
+  it('reports null remaining for sites without a per-site limit', () => {
+    const s = settings({ sites: [{ domain: 'reddit.com', limitMin: null, passes: 1 }] });
+    const view = buildPopupView(s, stateWith({ 'reddit.com': 10 * 60 }), NOW);
+    const row = view.sites.find((r) => r.domain === 'reddit.com')!;
+    expect(row.remainingSec).toBeNull();
+    expect(row.fraction).toBeNull();
+    expect(row.usedSec).toBeCloseTo(10 * 60, 0);
+  });
+
+  it('lists removed-but-used domains with null limit', () => {
+    const s = settings({ sites: [] });
+    const view = buildPopupView(s, stateWith({ 'reddit.com': 5 * 60 }), NOW);
+    expect(view.sites.map((r) => r.domain)).toEqual(['reddit.com']);
+    expect(view.sites[0].remainingSec).toBeNull();
+  });
+
+  it('combined remaining = budget minus total used, floored at 0', () => {
+    const partial = buildPopupView(
+      settings(),
+      stateWith({ 'youtube.com': 70 * 60, 'instagram.com': 20 * 60 }),
+      NOW,
+    );
+    expect(partial.combinedUsedSec).toBeCloseTo(90 * 60, 0);
+    expect(partial.combinedRemainingSec).toBeCloseTo(30 * 60, 0);
+    expect(partial.combinedFraction).toBeCloseTo(90 / 120, 2);
+
+    const spent = buildPopupView(
+      settings(),
+      stateWith({ 'youtube.com': 100 * 60, 'instagram.com': 40 * 60 }),
+      NOW,
+    );
+    expect(spent.combinedRemainingSec).toBe(0);
+    expect(spent.combinedFraction).toBe(1);
+  });
+
+  it('points resetsAt at the next usage-day boundary', () => {
+    const view = buildPopupView(settings(), stateWith({}), NOW);
+    expect(view.resetsAt).toBe(nextReset(NOW, 5));
+    expect(view.resetsAt).toBeGreaterThan(NOW);
+  });
+
+  it('empty install yields empty site list without crashing', () => {
+    const view = buildPopupView(settings({ sites: [] }), stateWith({}), NOW);
+    expect(view.sites).toEqual([]);
+    expect(view.combinedRemainingSec).toBe(120 * 60);
   });
 });
