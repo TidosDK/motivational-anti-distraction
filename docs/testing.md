@@ -104,8 +104,9 @@ A site list you actually use makes the limits feel real; `example.com` /
      an exhausted site shows an "exhausted" badge rather than disappearing; a
      site with no per-site limit says "no per-site limit". The combined-budget
      row counts down from the total budget, the reset time is shown, and
-     "Open Options" opens the settings page. Keep the popup open while a
-     blocked site plays in another window: its remaining time ticks down.
+     "Open Options" / "Open Stats" open the settings and stats pages. Keep
+     the popup open while a blocked site plays in another window: its
+     remaining time ticks down.
 
 Fill this table after running the steps above:
 
