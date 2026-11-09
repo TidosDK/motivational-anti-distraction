@@ -52,12 +52,17 @@ as usage accrues or settings change.
 - **WHEN** the popup is open and usage accrues on a blocked site (e.g. that site is active in a window)
 - **THEN** the remaining time in the popup decreases without reopening it
 
-### Requirement: Popup links to the options page
-The popup SHALL provide a control that opens the extension's options page.
+### Requirement: Popup links to the options and stats pages
+The popup SHALL provide a control that opens the extension's options page and
+a control that opens the extension's stats page.
 
 #### Scenario: Open settings
 - **WHEN** the user activates the options link in the popup
 - **THEN** the options page opens
+
+#### Scenario: Open stats
+- **WHEN** the user activates the stats link in the popup
+- **THEN** the stats page opens
 
 ### Requirement: Popup is read-only with an empty state
 Opening and viewing the popup SHALL NOT change budgets, usage counters,

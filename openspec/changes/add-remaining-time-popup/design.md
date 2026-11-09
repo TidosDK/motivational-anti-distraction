@@ -51,11 +51,13 @@ lives at the repo root like the other pages and loads
 `/src/pages/popup/main.ts`. No background changes needed — nothing registers
 `chrome.action.onClicked` today.
 
-### D4: Options link uses `chrome.runtime.openOptionsPage()`
-An anchor/button whose handler calls `chrome.runtime.openOptionsPage()`
-(honors the manifest `options_ui`, closes the popup automatically).
-Alternative: `<a href="options.html" target="_blank">` — works but bypasses
-the declared options surface.
+### D4: Popup links to options and stats
+The options link calls `chrome.runtime.openOptionsPage()` (honors the
+manifest `options_ui`, closes the popup automatically). Alternative:
+`<a href="options.html" target="_blank">` — works but bypasses the declared
+options surface. There is no equivalent API for arbitrary extension pages, so
+the stats link is a plain `<a href="stats.html" target="_blank">` — the
+canonical way to open a non-options extension page from a popup.
 
 ### D5: Popup chrome via shared style.css
 `body.popup { width: 320px }` plus a compact list style reusing `.meter`,

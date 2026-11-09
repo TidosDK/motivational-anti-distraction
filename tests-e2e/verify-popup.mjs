@@ -52,7 +52,10 @@ assert.match(await text(), /nolimit\.com\s*7m used · no per-site limit/, 'no-li
 assert.match(await text(), /Combined budget1h 23m left of 120m/, 'combined remaining');
 assert.match(await text(), /Resets \d/, 'reset label');
 assert.ok(await page.$('#open-options'), 'options link present');
-console.log('PASS seeded popup renders remaining per site, combined, reset, options link');
+const statsHref = await page.getAttribute('#open-stats', 'href');
+assert.ok(statsHref?.endsWith('/stats.html'), 'stats link present, points at stats page');
+assert.equal(await page.getAttribute('#open-stats', 'target'), '_blank', 'stats link opens a tab');
+console.log('PASS seeded popup renders remaining per site, combined, reset, options+stats links');
 
 // Live update: accrue 5 more minutes on example.com while the popup is open.
 await page.evaluate(() =>
@@ -88,6 +91,7 @@ await page.reload();
 await page.waitForFunction(() => document.body.textContent.includes('No sites blocked yet'));
 assert.match(await text(), /No sites blocked yet — add some in Options/);
 assert.ok(await page.$('#open-options'), 'options link present in empty state');
+assert.ok(await page.$('#open-stats'), 'stats link present in empty state');
 // Only the combined-budget row remains — no per-site rows.
 assert.equal((await page.$$('.usage-row')).length, 1, 'no per-site rows in empty state');
 console.log('PASS empty state shows hint + options link');

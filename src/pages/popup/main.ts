@@ -87,6 +87,12 @@ function render(): void {
       void chrome.runtime.openOptionsPage();
     });
     footer.appendChild(link);
+    footer.appendChild(el('span', 'popup-sep', '·'));
+    const statsLink = el('a', undefined, 'Open Stats');
+    statsLink.id = 'open-stats';
+    statsLink.href = chrome.runtime.getURL('stats.html');
+    statsLink.target = '_blank';
+    footer.appendChild(statsLink);
     popup.appendChild(footer);
   })();
 }

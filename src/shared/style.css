@@ -90,3 +90,4 @@ body.popup { width: 320px; }
 #popup .meter { width: 72px; }
 .popup-footer { margin-top: 0.75rem; border-top: 1px solid var(--line); padding-top: 0.6rem; }
 .popup-footer a { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+.popup-sep { color: var(--muted); margin: 0 0.35rem; font-size: 0.9rem; }

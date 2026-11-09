@@ -9,6 +9,7 @@
 - [x] 2.1 Create `popup.html` (root, like stats.html) + `src/pages/popup/main.ts`: load settings+state via `chromeKV` loaders, render per-site remaining rows with meter bars, combined remaining, reset time, options link calling `chrome.runtime.openOptionsPage()`, empty state when no sites; add popup styles to `src/shared/style.css` (`body.popup` ~320px, scrollable list); verify `npm run build` emits `dist/popup.html` and `npm run typecheck` passes
 - [x] 2.2 Re-render on `chrome.storage.onChanged` (state/settings) while open; verify live behavior in e2e task 3.1
 - [x] 2.3 Wire the toolbar action: add `"default_popup": "popup.html"` to `action` in `public/manifest.json`; verify loaded extension opens the popup on icon click (no manifest errors)
+- [x] 2.4 Add a stats-page link next to the options link (`<a href="stats.html" target="_blank">`, id `open-stats`, per design D4); verify `verify-popup.mjs` asserts both links and passes, plus build + typecheck
 
 ## 3. Verification and docs
 
