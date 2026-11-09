@@ -2,6 +2,12 @@
   "manifest_version": 3,
   "name": "Motivational Anti-Distraction",
   "description": "Blocks distraction sites behind a motivational ceremony: daily budgets, a 30-second quote ritual, and honest usage stats.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "permissions": ["storage", "tabs", "alarms", "declarativeNetRequest"],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -13,7 +19,13 @@
   },
   "action": {
     "default_title": "Motivational Anti-Distraction",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   },
   "web_accessible_resources": [
     {
