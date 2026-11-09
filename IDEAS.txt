@@ -1,0 +1,1 @@
+- A pop-up window when clicking on the extension showing how much total remaining and for each service. Also includes a link to the options page.

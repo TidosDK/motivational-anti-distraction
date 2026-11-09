@@ -104,18 +104,18 @@ Fill this table after running the steps above:
 |---|---|---|---|
 | 1 | Settings persist | ✅ | 2026-11-03 "seems to work" (incl. day-pass session length field) |
 | 2 | Exhaust → interstitial | ⚠️ | Works; block lands 1–3 min after a 1-min limit (accepted: ticks ≤1 min, redirect on next navigation) |
-| 3 | Background doesn't count | ☐ | Re-test: semantics now "non-active tab / minimized window" (see triage 2026-11-03) |
-| 3b | Multi-monitor counts | ☐ | New: unfocused window accrues; minimize stops; restore resumes |
+| 3 | Background doesn't count | ✅ | 2026-11-09 minimized window / non-active tab stays flat |
+| 3b | Multi-monitor counts | ✅ | 2026-11-09 "when a tab is on another screen it still counts… when minimized, it is not counted. This is what I want" |
 | 4 | Ceremony gates | ✅ | |
 | 5 | Day-pass scope | ✅ | 2026-11-03 "the daypass seems to work fine" |
 | 5b | Pass session expiry | ✅ | Covered by user's 2026-11-03 day-pass confirmation |
-| 6 | Hard block | ☐ | Re-test: with all passes spent, stays blocked until day rolls |
+| 6 | Hard block | ✅ | 2026-11-09 "seems correct" |
 | 7 | Day roll | ✅ | 2026-11-03 "works fine" |
 | 8 | Night owl | ✅ | 2026-11-03 "resets at the defined time" |
 | 9 | Offline blocking | — | Not tested |
 | 10 | Stats | ✅ | |
 | 11 | Brave Shields | — | Not tested; no observed interference |
-| 12 | Worker eviction | ☐ | Wake-race fixed 2026-11-08 (verify-10.5 covers it) — please retest in Brave |
+| 12 | Worker eviction | ✅ | 2026-11-09 confirmed in Brave after the wake-race fix (verify-10.5 covers it in Chromium) |
 
 ### Findings & triage — 2026-11-08 (user: "still doesn't count properly")
 
@@ -132,6 +132,9 @@ Fill this table after running the steps above:
   now accepts both).
 - **Please reload the extension (⟳) in `brave://extensions` and re-test
   steps 3, 3b, 6, 12** — especially 3b with a video playing untouched.
+  **Resolved 2026-11-09**: user re-tested in Brave — passive/unfocused
+  second-screen counting, minimize-stops-clock, hard block and worker
+  eviction all confirmed working.
 
 ### Findings & triage — 2026-11-03 (user run, Brave)
 
@@ -148,7 +151,7 @@ Fill this table after running the steps above:
 - **Confirmed working by user 2026-11-03**: settings persist, day-pass
   (timed), day roll, night-owl reset.
 - **Still open in Brave**: steps 3/3b (new counting), 6 (hard block under the
-  timed model), 12 (worker eviction).
+  timed model), 12 (worker eviction). **All re-tested and confirmed 2026-11-09.**
 
 ### Findings & triage — 2026-10-31 (user run, Brave)
 
