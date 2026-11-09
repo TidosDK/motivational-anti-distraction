@@ -52,6 +52,14 @@ as usage accrues or settings change.
 - **WHEN** the popup is open and usage accrues on a blocked site (e.g. that site is active in a window)
 - **THEN** the remaining time in the popup decreases without reopening it
 
+### Requirement: Popup shows the installed version
+The popup SHALL display the installed extension's version, matching the
+version the browser shows for the extension.
+
+#### Scenario: Version visible
+- **WHEN** the popup is opened
+- **THEN** the popup shows the extension's current version string
+
 ### Requirement: Popup links to the options and stats pages
 The popup SHALL provide a control that opens the extension's options page and
 a control that opens the extension's stats page.

@@ -55,7 +55,9 @@ assert.ok(await page.$('#open-options'), 'options link present');
 const statsHref = await page.getAttribute('#open-stats', 'href');
 assert.ok(statsHref?.endsWith('/stats.html'), 'stats link present, points at stats page');
 assert.equal(await page.getAttribute('#open-stats', 'target'), '_blank', 'stats link opens a tab');
-console.log('PASS seeded popup renders remaining per site, combined, reset, options+stats links');
+const manifestVersion = await page.evaluate(() => chrome.runtime.getManifest().version);
+assert.match(await text(), new RegExp(`v${manifestVersion.replace(/\./g, '\\.')}`), 'popup shows installed version');
+console.log('PASS seeded popup renders remaining per site, combined, reset, options+stats links, version');
 
 // Live update: accrue 5 more minutes on example.com while the popup is open.
 await page.evaluate(() =>
@@ -94,6 +96,12 @@ assert.ok(await page.$('#open-options'), 'options link present in empty state');
 assert.ok(await page.$('#open-stats'), 'stats link present in empty state');
 // Only the combined-budget row remains — no per-site rows.
 assert.equal((await page.$$('.usage-row')).length, 1, 'no per-site rows in empty state');
+
+// Options page carries the same version marker.
+await page.goto(`chrome-extension://${id}/options.html`);
+await page.waitForFunction(() => document.querySelector('#version')?.textContent);
+assert.equal(await page.textContent('#version'), `v${manifestVersion}`, 'options page shows version');
+console.log('PASS options page shows the installed version');
 console.log('PASS empty state shows hint + options link');
 
 await sleep(100);

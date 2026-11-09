@@ -93,6 +93,9 @@ function render(): void {
     statsLink.href = chrome.runtime.getURL('stats.html');
     statsLink.target = '_blank';
     footer.appendChild(statsLink);
+    const version = el('span', 'popup-version', `v${chrome.runtime.getManifest().version}`);
+    version.title = 'Motivational Anti-Distraction version';
+    footer.appendChild(version);
     popup.appendChild(footer);
   })();
 }

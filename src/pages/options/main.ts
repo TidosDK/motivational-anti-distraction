@@ -3,6 +3,9 @@ import { normalizeDomain } from '../../shared/domains';
 import { chromeKV, loadSettings, saveSettings } from '../../shared/storage';
 import type { Settings } from '../../shared/types';
 
+document.querySelector<HTMLElement>('#version')!.textContent =
+  `v${chrome.runtime.getManifest().version}`;
+
 const settings: Settings = await loadSettings(chromeKV);
 
 const tbody = document.querySelector('#site-table tbody')!;
