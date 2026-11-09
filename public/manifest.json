@@ -1,7 +1,6 @@
 {
   "manifest_version": 3,
   "name": "Motivational Anti-Distraction",
-  "version": "0.1.0",
   "description": "Blocks distraction sites behind a motivational ceremony: daily budgets, a 30-second quote ritual, and honest usage stats.",
   "permissions": ["storage", "tabs", "alarms", "declarativeNetRequest"],
   "host_permissions": ["<all_urls>"],

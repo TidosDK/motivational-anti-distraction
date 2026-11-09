@@ -65,6 +65,26 @@ npm test           # unit tests
 To iterate: edit code → `npm run build` → hit ⟳ on the extension card →
 reload blocked tabs.
 
+## Versioning
+
+`package.json` holds the one and only version. The build stamps it into
+`dist/manifest.json` automatically — `public/manifest.json` deliberately has
+no version field, so the two can never drift.
+
+To ship a new version (after committing all work, since `npm version` needs a
+clean tree):
+
+```bash
+npm run version:patch   # 0.1.0 → 0.1.1 (fixes)
+npm run version:minor   # 0.1.0 → 0.2.0 (features)
+npm run version:major   # 0.1.0 → 1.0.0 (breaking)
+npm run build           # manifest picks up the new version
+```
+
+Each script bumps `package.json`, creates a release commit and a git tag in
+one step. The build fails loudly if the version isn't a valid Chrome manifest
+version (1–4 dot-separated integers — no `-beta` suffixes).
+
 ## Testing
 
 Unit tests: `npm test`. Real-browser verifications and the manual Brave

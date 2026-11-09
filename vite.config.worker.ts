@@ -9,6 +9,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: false,
+    // public/ is owned by the pages build (which stamps the manifest version);
+    // copying it again here would overwrite that stamped manifest.
+    copyPublicDir: false,
     target: 'chrome120',
     rollupOptions: {
       input: resolve(root, 'src/background/index.ts'),
