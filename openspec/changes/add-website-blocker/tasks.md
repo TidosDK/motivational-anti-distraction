@@ -40,7 +40,7 @@
 
 ## 8. Integration and hardening
 
-- [ ] 8.1 Run the full manual test checklist in Brave (add sites, exhaust limit, ceremony, day-pass, hard block, next-day reset, offline blocking) and record results in `docs/testing.md`; fix issues found
+- [x] 8.1 Run the full manual test checklist in Brave (add sites, exhaust limit, ceremony, day-pass, hard block, next-day reset, offline blocking) and record results in `docs/testing.md`; fix issues found — offline (9) and Brave Shields (11) accepted as untested limitations by agreement 2026-11-09; all other steps confirmed in Brave
 - [x] 8.2 Write `README.md`: purpose, build, load-unpacked instructions, and the v1 feature set; verify a fresh clone follows the doc and loads the extension successfully
 
 ## 9. Timed day-pass sessions (revision from manual testing)

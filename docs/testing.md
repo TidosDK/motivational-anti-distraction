@@ -112,9 +112,9 @@ Fill this table after running the steps above:
 | 6 | Hard block | ✅ | 2026-11-09 "seems correct" |
 | 7 | Day roll | ✅ | 2026-11-03 "works fine" |
 | 8 | Night owl | ✅ | 2026-11-03 "resets at the defined time" |
-| 9 | Offline blocking | — | Not tested |
+| 9 | Offline blocking | — | Accepted untested (2026-11-09, by agreement). Redirects are local dNR session rules that fire before any network request, so the interstitial should appear offline by construction |
 | 10 | Stats | ✅ | |
-| 11 | Brave Shields | — | Not tested; no observed interference |
+| 11 | Brave Shields | — | Accepted untested (2026-11-09, by agreement); no interference observed in weeks of daily driving |
 | 12 | Worker eviction | ✅ | 2026-11-09 confirmed in Brave after the wake-race fix (verify-10.5 covers it in Chromium) |
 
 ### Findings & triage — 2026-11-08 (user: "still doesn't count properly")
