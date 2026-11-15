@@ -8,7 +8,7 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["storage", "tabs", "alarms", "declarativeNetRequest"],
+  "permissions": ["storage", "tabs", "alarms", "idle", "declarativeNetRequest"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

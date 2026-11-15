@@ -96,3 +96,40 @@ export function tickAll(
   }
   return { segments, next: map };
 }
+
+/**
+ * Away pause (idle design D1): flush every domain's pending union at
+ * `nowMs` — exactly like a tick — then leave an EMPTY map, so nothing can
+ * bill while the user is away. Resume happens by re-enumerating windows and
+ * anchoring fresh sessions at the return moment; no old anchors survive.
+ */
+export function pauseAllSessions(
+  sessions: SessionMap,
+  nowMs: number,
+): { segments: Segment[]; next: SessionMap } {
+  return { segments: tickAll(sessions, nowMs).segments, next: {} };
+}
+
+/**
+ * Worker-wake guard (idle design D3): when the browser reports the user
+ * away at wake-up, restored session segments are charged only up to
+ * `savedAt` — the last moment the worker was alive and could see the user
+ * active. The away gap (savedAt -> now) is NOT billed to any site.
+ */
+export function awayChargePlan(
+  stored: { sessions: SessionMap; savedAt: number } | null,
+  nowMs: number,
+): Segment[] {
+  if (!stored) return [];
+  const segments: Segment[] = [];
+  for (const domain of new Set(Object.values(stored.sessions).map((s) => s.domain))) {
+    const fromMs = Math.min(
+      ...Object.values(stored.sessions)
+        .filter((s) => s.domain === domain)
+        .map((s) => s.sinceMs),
+    );
+    const toMs = Math.min(stored.savedAt, nowMs);
+    if (toMs > fromMs) segments.push({ domain, fromMs, toMs });
+  }
+  return segments;
+}

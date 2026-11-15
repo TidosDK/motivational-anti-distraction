@@ -2,10 +2,10 @@
 
 ## 1. Worker idle wiring
 
-- [ ] 1.1 Add `"idle"` to `permissions` in `public/manifest.json`; verify `npm run build` succeeds and the unpacked `dist/` loads in Brave with no manifest errors
-- [ ] 1.2 Extract the window re-enumeration in `src/background/index.ts` `init()` into a reusable function (`retrackAllVisibleWindows`) so both startup and idle-resume use one code path; verify existing unit tests and `npm run typecheck` still pass (pure refactor, no behavior change)
-- [ ] 1.3 Call `chrome.idle.setDetectionInterval(15)` at worker init; gate the initial re-enumeration behind `chrome.idle.queryState` — when the state is `idle`/`locked`, flush restored session segments up to `now`, clear sessions, and skip tracking; verify by adding a unit test around the extracted decision helper (state → track / flush-and-clear) and running `npm test`
-- [ ] 1.4 Wire `chrome.idle.onStateChanged`: on `idle`/`locked` flush and drop every window session (existing `dropWindow` pattern for all windows), clear the session map, and clear the tick alarm via `manageTickAlarm`; on `active` re-run `retrackAllVisibleWindows`; verify with a unit test on the extracted pause/resume helper (no double-accrual across pause→resume) and `npm test` green
+- [x] 1.1 Add `"idle"` to `permissions` in `public/manifest.json`; verify `npm run build` succeeds and the unpacked `dist/` loads in Brave with no manifest errors
+- [x] 1.2 Extract the window re-enumeration in `src/background/index.ts` `init()` into a reusable function (`retrackAllVisibleWindows`) so both startup and idle-resume use one code path; verify existing unit tests and `npm run typecheck` still pass (pure refactor, no behavior change)
+- [x] 1.3 Call `chrome.idle.setDetectionInterval(15)` at worker init; gate the initial re-enumeration behind `chrome.idle.queryState` — when the state is `idle`/`locked`, flush restored session segments up to `now`, clear sessions, and skip tracking; verify by adding a unit test around the extracted decision helper (state → track / flush-and-clear) and running `npm test`
+- [x] 1.4 Wire `chrome.idle.onStateChanged`: on `idle`/`locked` flush and drop every window session (existing `dropWindow` pattern for all windows), clear the session map, and clear the tick alarm via `manageTickAlarm`; on `active` re-run `retrackAllVisibleWindows`; verify with a unit test on the extracted pause/resume helper (no double-accrual across pause→resume) and `npm test` green
 
 ## 2. Verification and docs
 

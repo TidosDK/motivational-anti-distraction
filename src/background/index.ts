@@ -4,14 +4,24 @@ import { chromeKV, accrueForeground, loadDeck, loadSessions, loadSettings, loadS
 import { SETTINGS_KEY, STATE_KEY } from '../shared/types';
 import { QUOTES } from '../shared/quotes';
 import { nextQuote } from '../shared/deck';
-import { closeWindowSession, hasAnySession, setWindowSession, tickAll, type Segment, type SessionMap } from './accounting';
 import { computeBlockedDomains, diffRules, regexFilterFor, type RuleSpec } from './enforcement';
 import { applyPassSpend, isPassActive, isSiteExhausted } from '../shared/exhaustion';
+import { awayChargePlan, closeWindowSession, hasAnySession, pauseAllSessions, setWindowSession, tickAll, type Segment, type SessionMap } from './accounting';
 
 const TICK_ALARM = 'usage-tick';
 const ROLL_ALARM = 'day-roll';
 /** One-shot alarms: `pass-expire:<domain>` refreshes rules when a session lapses. */
 const PASS_EXPIRE_PREFIX = 'pass-expire:';
+/** Idle detection threshold (idle design D2): fixed minimum, caps away
+ * over-counting at ~15 s per transition. Not user-configurable — one honest
+ * constant. */
+const IDLE_DETECTION_SECONDS = 15;
+
+/** Both away signals share one code path (idle design D4): `locked` is
+ * best-effort on Linux and must never be relied on specifically. */
+function isAwayState(state: `${chrome.idle.IdleState}`): boolean {
+  return state === 'idle' || state === 'locked';
+}
 
 /**
  * Counted sessions per visible window (design D3, multi-monitor): every
@@ -212,6 +222,30 @@ chrome.windows.onBoundsChanged.addListener((windowOrId: chrome.windows.Window | 
   })();
 });
 
+// --- idle / screen lock ---------------------------------------------------------
+// Away (idle or locked) flushes and drops every window session — the same
+// flush-and-clear invariant that makes minimize/restore correct (idle design
+// D1). On return the same re-enumeration as startup anchors fresh sessions
+// at the return moment, so no part of the away gap is ever billed. Events
+// missed while the worker slept are covered by init()'s queryState guard.
+
+chrome.idle.onStateChanged.addListener((newState) => {
+  void (async () => {
+    await ready;
+    if (isAwayState(newState)) {
+      if (!hasAnySession(sessions)) return;
+      const r = pauseAllSessions(sessions, Date.now());
+      await setSessions(r.next);
+      for (const seg of r.segments) await accrue(seg);
+      await manageTickAlarm();
+      await refreshRules();
+    } else {
+      await retrackAllVisibleWindows();
+      await refreshRules();
+    }
+  })();
+});
+
 // --- alarms --------------------------------------------------------------------
 
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -328,11 +362,14 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
 
 // --- lifecycle ------------------------------------------------------------------------
 
-async function init(): Promise<void> {
-  // Rebuild the session map from live browser state on every worker wake:
-  // every visible window's active blocked tab counts. Storage only supplies
-  // continuity anchors for sessions that were already open when the worker
-  // died (same window, tab and domain), anchored at the last alive timestamp.
+/**
+ * Rebuild the counted session map from live browser state: every visible
+ * window's active blocked tab counts. Storage only supplies continuity
+ * anchors for sessions that were already open when the worker died (same
+ * window, tab and domain), anchored at the last alive timestamp. Used by
+ * init() on worker wake and by the idle `active` transition on return.
+ */
+async function retrackAllVisibleWindows(): Promise<void> {
   const stored = await loadSessions(chromeKV);
   const now = Date.now();
   const next: SessionMap = {};
@@ -361,6 +398,29 @@ async function init(): Promise<void> {
   }
   await setSessions(next);
   await manageTickAlarm();
+}
+
+async function init(): Promise<void> {
+  chrome.idle.setDetectionInterval(IDLE_DETECTION_SECONDS);
+  // Idle design D3: MV3 loses onStateChanged events while the worker is
+  // dead, so always query the CURRENT state before tracking. When the
+  // browser reports the user away, restored sessions are charged only up to
+  // the last moment the worker could see them active, no sessions start, and
+  // the later idle->active transition re-enumerates normally.
+  let wakeState: `${chrome.idle.IdleState}` = 'active';
+  try {
+    wakeState = await chrome.idle.queryState(IDLE_DETECTION_SECONDS);
+  } catch {
+    /* idle API unavailable: degrade to pre-idle-aware behavior */
+  }
+  if (isAwayState(wakeState)) {
+    const stored = await loadSessions(chromeKV);
+    for (const seg of awayChargePlan(stored ?? null, Date.now())) await accrue(seg);
+    await setSessions({});
+    await manageTickAlarm();
+  } else {
+    await retrackAllVisibleWindows();
+  }
   await refreshRules();
   await scheduleDayRoll();
 }

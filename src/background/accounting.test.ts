@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  awayChargePlan,
   closeWindowSession,
   flushDomain,
   hasAnySession,
+  pauseAllSessions,
   setWindowSession,
   tickAll,
   type SessionMap,
@@ -141,5 +143,76 @@ describe('tickAll / flushDomain', () => {
   it('hasAnySession tracks map emptiness', () => {
     expect(hasAnySession({})).toBe(false);
     expect(hasAnySession(map(S(1, 'youtube.com', T0)))).toBe(true);
+  });
+});
+
+describe('pauseAllSessions (idle away pause)', () => {
+  it('flushes every domain once and leaves an empty map', () => {
+    const open = map(
+      S(1, 'youtube.com', T0),
+      S(2, 'instagram.com', T0 + 5_000),
+      S(3, 'youtube.com', T0 + 10_000),
+    );
+    const r = pauseAllSessions(open, T0 + 60_000);
+    expect(r.next).toEqual({});
+    expect(r.segments).toEqual([
+      { domain: 'youtube.com', fromMs: T0, toMs: T0 + 60_000 },
+      { domain: 'instagram.com', fromMs: T0 + 5_000, toMs: T0 + 60_000 },
+    ]);
+  });
+
+  it('pausing again charges nothing (no double-accrual across pause)', () => {
+    const once = pauseAllSessions(map(S(1, 'youtube.com', T0)), T0 + 60_000);
+    const twice = pauseAllSessions(once.next, T0 + 120_000);
+    expect(twice.segments).toEqual([]);
+  });
+
+  it('a session opened after resume accrues from the return anchor only', () => {
+    const paused = pauseAllSessions(map(S(1, 'youtube.com', T0)), T0 + 60_000);
+    // Away gap (pause .. return) has no session to bill; resume re-anchors fresh.
+    const resumed = setWindowSession(paused.next, 1, 'youtube.com', 10, T0 + 3_600_000);
+    expect(resumed.segment).toBeNull();
+    expect(resumed.next['1'].sinceMs).toBe(T0 + 3_600_000);
+    const closed = closeWindowSession(resumed.next, 1, T0 + 3_660_000);
+    expect(closed.segment).toEqual({
+      domain: 'youtube.com',
+      fromMs: T0 + 3_600_000,
+      toMs: T0 + 3_660_000,
+    });
+  });
+});
+
+describe('awayChargePlan (worker-wake away guard)', () => {
+  const stored = (sessions: SessionMap, savedAt: number) => ({ sessions, savedAt });
+
+  it('charges nothing without stored sessions', () => {
+    expect(awayChargePlan(null, T0)).toEqual([]);
+  });
+
+  it('charges restored sessions only up to savedAt, once per domain union', () => {
+    const plan = awayChargePlan(
+      stored(
+        map(
+          S(1, 'youtube.com', T0),
+          S(2, 'youtube.com', T0 + 10_000),
+          S(3, 'instagram.com', T0 + 20_000),
+        ),
+        T0 + 30_000,
+      ),
+      T0 + 40 * 60_000,
+    );
+    expect(plan).toEqual([
+      { domain: 'youtube.com', fromMs: T0, toMs: T0 + 30_000 },
+      { domain: 'instagram.com', fromMs: T0 + 20_000, toMs: T0 + 30_000 },
+    ]);
+  });
+
+  it('never charges backwards when savedAt predates the anchors', () => {
+    expect(awayChargePlan(stored(map(S(1, 'youtube.com', T0)), T0 - 10_000), T0 + 10_000)).toEqual([]);
+  });
+
+  it('caps the charge at now when savedAt is ahead of it', () => {
+    const plan = awayChargePlan(stored(map(S(1, 'youtube.com', T0)), T0 + 60_000), T0 + 45_000);
+    expect(plan).toEqual([{ domain: 'youtube.com', fromMs: T0, toMs: T0 + 45_000 }]);
   });
 });
