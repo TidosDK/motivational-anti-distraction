@@ -2,11 +2,18 @@ schema: spec-driven
 
 context: |
   Versioning: package.json is the single version source (the build stamps
-  dist/manifest.json). Bump the patch (`npm run version:patch`) after every
-  committed implementation change so the new number is visible in Brave;
-  bump the minor (`npm run version:minor`) only when an OpenSpec change is
-  finished/archived. `npm version` needs a clean tree: commit first, then
-  bump, then `npm run build`.
+  dist/manifest.json). Per-feature rhythm: no version bumps while
+  implementing (work-in-progress commits are unversioned); when the feature
+  is ready for the user to test/validate, bump the minor
+  (`npm run version:minor`, e.g. 0.2.0 -> 0.3.0); each round of
+  user-requested changes afterwards bumps the patch (`npm run version:patch`,
+  e.g. 0.3.1). The next feature takes the next minor when it is ready for
+  validation. EVERY version bump is tagged and pushed (`git push
+  --follow-tags`), which triggers the GitHub Release workflow. `npm version`
+  needs a clean tree: commit first, then bump, then `npm run build`.
+
+  IDEAS.txt is a local-only working notes file: never commit it (it is
+  excluded via .git/info/exclude, deliberately not via .gitignore).
 
 # Project context (optional)
 # Add only constraints that should guide OpenSpec artifacts and workflows.
@@ -42,11 +49,13 @@ context: |
 operations:
   apply:
     guidance:
-      - After completing implementation commits for a task group, bump the
-        patch version (`npm run version:patch`) and rebuild, so the version
-        number visible in Brave changes with every change.
+      - Do not bump versions while implementing. Hand the feature to the
+        user for validation with a minor bump and tag push
+        (`npm run version:minor && git push --follow-tags`); each subsequent
+        user-requested change round is a tagged patch bump.
   archive:
     guidance:
-      - As part of finishing a change, bump the minor version
-        (`npm run version:minor`) and rebuild before or with the archive.
+      - Archiving a change does not bump the version; bumps belong to
+        feature readiness and validation rounds, not archiving. Summarize
+        the archive outcome before finishing.
 
