@@ -17,9 +17,12 @@ The friction is the feature.
 - **Foreground-only tracking (multi-monitor aware)** — minutes count while
   the site is the active tab of **any visible window**, so a YouTube window
   on your second monitor keeps counting while you work on the first.
-  Background tabs and minimized windows are free. (A window fully covered by
-  another still counts — browsers can't detect that — and screen lock isn't
-  detected either; counting is deliberately generous.)
+  Background tabs and minimized windows are free. **Away time doesn't
+  count**: when the browser reports you idle or the screen locks, the meter
+  stops within ~15 seconds and resumes fresh when you return — leave a tab
+  open all night and it stays at zero. (A window fully covered by another
+  still counts — browsers can't detect that. Screen-lock detection is
+  best-effort on some Linux desktops; idle detection covers it regardless.)
 - **Configurable day reset** — the usage day flips at an hour you pick
   (default 05:00), so 1 a.m. browsing counts toward the night it started in.
   All counters, passes and stats roll together at that boundary.

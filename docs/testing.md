@@ -107,6 +107,17 @@ A site list you actually use makes the limits feel real; `example.com` /
      "Open Options" / "Open Stats" open the settings and stats pages. Keep
      the popup open while a blocked site plays in another window: its
      remaining time ticks down.
+ 14. **Away time doesn't count (idle/lock)** — system idle can't be simulated
+     by the automated scripts, so this step is the verification of record:
+     (a) leave a blocked site (`example.com`, 10-min limit) as the active tab
+     of a visible window and walk away for 5+ minutes (trigger the
+     screensaver/sleep or simply don't touch the browser); back on the stats
+     page it should have gained at most ~1 minute for the whole absence, not
+     5. (b) lock the screen for ~5 minutes with a blocked tab open: same
+     result — if the platform can't report screen lock (some Linux desktops),
+     the idle signal still covers it and nothing counts. (c) after returning,
+     actively browse the blocked tab for ~1 minute: time starts accruing
+     again from the return moment.
 
 Fill this table after running the steps above:
 
@@ -127,6 +138,7 @@ Fill this table after running the steps above:
 | 11 | Brave Shields | — | Accepted untested (2026-11-09, by agreement); no interference observed in weeks of daily driving |
 | 12 | Worker eviction | ✅ | 2026-11-09 confirmed in Brave after the wake-race fix (verify-10.5 covers it in Chromium) |
 | 13 | Remaining-time popup | ✅ | 2026-11-10 user confirmed in Brave: "When I click the extension icon, it shows the menu and the correct information" (incl. orange icon + version display) |
+| 14 | Away time doesn't count | ⬜ | Manual-only (idle events can't be simulated by scripts); verify a-b-c per step 14 |
 
 ### Findings & triage — 2026-11-08 (user: "still doesn't count properly")
 

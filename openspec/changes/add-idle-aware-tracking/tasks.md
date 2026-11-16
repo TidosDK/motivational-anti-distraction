@@ -9,9 +9,9 @@
 
 ## 2. Verification and docs
 
-- [ ] 2.1 Extend `docs/testing.md` with the manual Brave checks: leave a blocked tab open and trigger system idle → budget stops within ~1 min; lock the screen → no accrual; unlock → counting resumes fresh; record results (system idle cannot be simulated by the Playwright-based `tests-e2e/` scripts, so this group is the verification of record)
-- [ ] 2.2 Update the README counting caveats: remove "screen lock isn't detected" and document idle/lock exclusion plus the Linux best-effort `locked` caveat; verify README matches observed behavior from task 2.1
-- [ ] 2.3 Add `tests-e2e/verify-idle.mjs` asserting the no-billing invariant the worker can prove without real idle events: with seeded sessions and a `queryState` result of `locked` at wake, no accrual is written for the gap and the tick alarm is not armed; verify the script passes against the built `dist/`
+- [x] 2.1 Extend `docs/testing.md` with the manual Brave checks: leave a blocked tab open and trigger system idle → budget stops within ~1 min; lock the screen → no accrual; unlock → counting resumes fresh; record results (system idle cannot be simulated by the Playwright-based `tests-e2e/` scripts, so this group is the verification of record)
+- [x] 2.2 Update the README counting caveats: remove "screen lock isn't detected" and document idle/lock exclusion plus the Linux best-effort `locked` caveat; verify README matches observed behavior from task 2.1
+- [x] 2.3 Add `tests-e2e/verify-idle.mjs` asserting the no-billing invariant the worker can prove without real idle events: with seeded sessions and a `queryState` result of `locked` at wake, no accrual is written for the gap and the tick alarm is not armed; verify the script passes against the built `dist/`
 
 ## Workflow follow-up
 
