@@ -111,6 +111,22 @@ export function pauseAllSessions(
 }
 
 /**
+ * Away decision (idle design D5, validation ruling 2026-11-17): the browser's
+ * idle signal is purely input-based, but passive watching — a video playing
+ * with sound while hands stay off the keyboard — is spec'd counted usage.
+ * So `idle` counts as away only while nothing is playing audible media;
+ * `locked` is a deliberate departure signal and is away regardless of media.
+ */
+export function isAwayNow(
+  state: 'active' | 'idle' | 'locked',
+  hasAudibleMedia: boolean,
+): boolean {
+  if (state === 'locked') return true;
+  if (state === 'idle') return !hasAudibleMedia;
+  return false;
+}
+
+/**
  * Worker-wake guard (idle design D3): when the browser reports the user
  * away at wake-up, restored session segments are charged only up to
  * `savedAt` — the last moment the worker was alive and could see the user

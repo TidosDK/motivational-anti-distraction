@@ -18,11 +18,15 @@ The friction is the feature.
   the site is the active tab of **any visible window**, so a YouTube window
   on your second monitor keeps counting while you work on the first.
   Background tabs and minimized windows are free. **Away time doesn't
-  count**: when the browser reports you idle or the screen locks, the meter
-  stops within ~15 seconds and resumes fresh when you return — leave a tab
-  open all night and it stays at zero. (A window fully covered by another
-  still counts — browsers can't detect that. Screen-lock detection is
-  best-effort on some Linux desktops; idle detection covers it regardless.)
+  count**: stop touching the keyboard/mouse (or lock the screen) and the
+  meter stops within ~15 seconds, resuming fresh when you return — leave a
+  tab open all night and it stays at zero. **Watching with sound keeps the
+  clock running** even while your hands are off the mouse (passive watching
+  counts; a lock pauses everything, muted hands-off content eventually
+  counts as away, and an unattended music stream keeps counting until it
+  stops or the screen locks). (A window fully covered by another still
+  counts — browsers can't detect that. Screen-lock detection is best-effort
+  on some Linux desktops; idle detection covers it regardless.)
 - **Configurable day reset** — the usage day flips at an hour you pick
   (default 05:00), so 1 a.m. browsing counts toward the night it started in.
   All counters, passes and stats roll together at that boundary.

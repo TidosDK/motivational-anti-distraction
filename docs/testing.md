@@ -107,17 +107,23 @@ A site list you actually use makes the limits feel real; `example.com` /
      "Open Options" / "Open Stats" open the settings and stats pages. Keep
      the popup open while a blocked site plays in another window: its
      remaining time ticks down.
- 14. **Away time doesn't count (idle/lock)** — system idle can't be simulated
-     by the automated scripts, so this step is the verification of record:
-     (a) leave a blocked site (`example.com`, 10-min limit) as the active tab
-     of a visible window and walk away for 5+ minutes (trigger the
-     screensaver/sleep or simply don't touch the browser); back on the stats
-     page it should have gained at most ~1 minute for the whole absence, not
-     5. (b) lock the screen for ~5 minutes with a blocked tab open: same
-     result — if the platform can't report screen lock (some Linux desktops),
-     the idle signal still covers it and nothing counts. (c) after returning,
-     actively browse the blocked tab for ~1 minute: time starts accruing
-     again from the return moment.
+ 14. **Away time doesn't count — but hands-off watching does (idle/lock)** —
+     system idle can't be simulated by the automated scripts, so this step is
+     the verification of record:
+     (a) hands-off video counts — play a YouTube video (with sound) on a
+         blocked site and touch nothing for 5 minutes: the stats gain ≈5 min.
+         Pause the video and stop touching everything: the meter stops within
+         ~1 min.
+     (b) walk away — leave a blocked site (`example.com`, 10-min limit) as the
+         active tab of a visible window (nothing playing) and be away 5+
+         minutes (trigger the screensaver/sleep or simply don't touch the
+         browser); on the stats page it gained at most ~1 minute for the whole
+         absence, not 5.
+     (c) lock the screen for ~5 minutes with a blocked tab open — nothing
+         counts, even if media keeps playing; if the platform can't report
+         screen lock (some Linux desktops), the idle signal still covers it.
+     (d) after returning, actively browse the blocked tab for ~1 minute: time
+         accrues again from the return moment.
 
 Fill this table after running the steps above:
 
@@ -138,7 +144,26 @@ Fill this table after running the steps above:
 | 11 | Brave Shields | — | Accepted untested (2026-11-09, by agreement); no interference observed in weeks of daily driving |
 | 12 | Worker eviction | ✅ | 2026-11-09 confirmed in Brave after the wake-race fix (verify-10.5 covers it in Chromium) |
 | 13 | Remaining-time popup | ✅ | 2026-11-10 user confirmed in Brave: "When I click the extension icon, it shows the menu and the correct information" (incl. orange icon + version display) |
-| 14 | Away time doesn't count | ⬜ | Manual-only (idle events can't be simulated by scripts); verify a-b-c per step 14 |
+| 14 | Away vs. hands-off watching | ⬜ | Manual-only (idle events can't be simulated by scripts); verify a-d per step 14 (0.3.1: audio-aware pause fix for "YouTube counts way less") |
+
+### Findings & triage — 2026-11-17 (user: "watching YouTube, the count is definitely off — way less")
+
+- **Root cause**: the 0.3.0 idle pause treated the browser's idle signal as
+  "away" unconditionally. Idle is purely input-based — watching a video
+  hands-off reads as idle after 15 s, so the meter stopped during actual
+  watching and only resumed on the next mouse/keyboard touch. Collided with
+  the 2026-11-09 pinned semantics (passive viewing counts).
+- **Fix (0.3.1, ruled by user)**: audio-aware pause — idle counts as away
+  only while no tab plays audible media; screen lock pauses regardless of
+  media; audio stopping/starting re-runs the decision (video ends while idle
+  → pauses then; autoplay while idle → resumes). Known accepted trade-off:
+  unattended audible media (music/livestream) keeps counting until it stops
+  or the screen locks.
+- **Verification**: unit tests for the decision (isAwayNow); wake-guard e2e
+  re-proven both branches (away wake charges exactly sinceMs..savedAt,
+  active wake charges 0); verify-10.5 passive counting unaffected. Manual
+  step 14 (rewritten with the hands-off check) remains the verification of
+  record.
 
 ### Findings & triage — 2026-11-08 (user: "still doesn't count properly")
 

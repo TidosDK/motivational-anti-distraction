@@ -54,11 +54,27 @@ events alone — rejected; MV3 loses events during worker death, which is the
 same race class the `ready` gate already exists to fight.
 
 ### D4: `locked` and `idle` share one code path
-No separate handling; both flush, both suppress, both resume via `active`.
-On Linux, `locked` comes from the GNOME/KDE DBus screensaver interface with
+No separate pause/resume machinery per signal; both flush, both suppress,
+both resume via `active` — differing only in the away decision (D5). On
+Linux, `locked` comes from the GNOME/KDE DBus screensaver interface with
 an X11 fallback (research: Chromium `ui/base/idle`); desktops without those
 report only `idle`, which still covers away-time. Nothing may depend on
 `locked` specifically.
+
+### D5: Idle pauses only without audible media (validation ruling 2026-11-17)
+First Brave validation failed: hands-off YouTube watching under-counted —
+`chrome.idle` is purely input-based, so a playing video with no mouse
+movement reads as "idle" after the 15 s threshold, while passive watching
+is spec'd counted usage (user ruling 2026-11-09, "this is what I want").
+Ruled fix: `idle` is treated as away only while `chrome.tabs.query({audible:
+true})` finds no playing tab; `locked` is a deliberate departure signal and
+pauses even with media playing. When audio stops while idle (video ends),
+`tabs.onUpdated` with `changeInfo.audible` re-runs the same decision and
+pauses immediately; audio starting while idle (autoplay) resumes tracking.
+Accepted trade-off: audible media playing unattended (music, a 24/7 stream)
+keeps the meter running until the screen locks or the audio stops —
+counting stays "deliberately generous", now bounded by sound instead of
+by nothing.
 
 ## Risks / Trade-offs
 

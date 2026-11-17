@@ -6,7 +6,7 @@ import { QUOTES } from '../shared/quotes';
 import { nextQuote } from '../shared/deck';
 import { computeBlockedDomains, diffRules, regexFilterFor, type RuleSpec } from './enforcement';
 import { applyPassSpend, isPassActive, isSiteExhausted } from '../shared/exhaustion';
-import { awayChargePlan, closeWindowSession, hasAnySession, pauseAllSessions, setWindowSession, tickAll, type Segment, type SessionMap } from './accounting';
+import { awayChargePlan, closeWindowSession, hasAnySession, isAwayNow, pauseAllSessions, setWindowSession, tickAll, type Segment, type SessionMap } from './accounting';
 
 const TICK_ALARM = 'usage-tick';
 const ROLL_ALARM = 'day-roll';
@@ -17,10 +17,23 @@ const PASS_EXPIRE_PREFIX = 'pass-expire:';
  * constant. */
 const IDLE_DETECTION_SECONDS = 15;
 
-/** Both away signals share one code path (idle design D4): `locked` is
- * best-effort on Linux and must never be relied on specifically. */
-function isAwayState(state: `${chrome.idle.IdleState}`): boolean {
-  return state === 'idle' || state === 'locked';
+/**
+ * Audio-aware away decision (idle designs D4 + D5): `locked` is best-effort
+ * on Linux and always away; `idle` — a purely input-based signal — is away
+ * only while NO tab plays audible media, so hands-off watching (a video with
+ * sound, mouse untouched) keeps counting.
+ */
+async function awayNow(): Promise<boolean> {
+  let state: `${chrome.idle.IdleState}` = 'active';
+  try {
+    state = await chrome.idle.queryState(IDLE_DETECTION_SECONDS);
+  } catch {
+    return false; // idle API unavailable: degrade to pre-idle-aware behavior
+  }
+  if (state === 'active') return false;
+  if (state === 'locked') return true;
+  const audible = await chrome.tabs.query({ audible: true });
+  return isAwayNow(state, audible.length > 0);
 }
 
 /**
@@ -172,6 +185,14 @@ chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.audible !== undefined) {
+    // Audible start/stop changes the away decision (design D5): the video
+    // ended while idle -> pause now; autoplay started while idle -> resume.
+    void (async () => {
+      await ready;
+      await reevaluateAway();
+    })();
+  }
   if (!tab.active) return;
   if (changeInfo.url !== undefined || changeInfo.status === 'complete') {
     void (async () => {
@@ -223,26 +244,45 @@ chrome.windows.onBoundsChanged.addListener((windowOrId: chrome.windows.Window | 
 });
 
 // --- idle / screen lock ---------------------------------------------------------
-// Away (idle or locked) flushes and drops every window session — the same
+// Away pauses by flushing and clearing every window session — the same
 // flush-and-clear invariant that makes minimize/restore correct (idle design
-// D1). On return the same re-enumeration as startup anchors fresh sessions
+// D1). On resume the same re-enumeration as startup anchors fresh sessions
 // at the return moment, so no part of the away gap is ever billed. Events
-// missed while the worker slept are covered by init()'s queryState guard.
+// missed while the worker slept are covered by init()'s away guard. The
+// decision is audio-aware (design D5): idle pauses only while nothing is
+// audible; locked always pauses; audio starting/stopping re-runs it.
 
-chrome.idle.onStateChanged.addListener((newState) => {
+/** Whether the worker currently considers the user away (null: unknown). */
+let awayKnown: boolean | null = null;
+
+/** Serialize re-evaluations: idle events and audible flips can overlap. */
+let awayChain: Promise<void> = Promise.resolve();
+function reevaluateAway(): Promise<void> {
+  awayChain = awayChain
+    .then(async () => {
+      const away = await awayNow();
+      const wasAway = awayKnown === true;
+      awayKnown = away;
+      if (away) {
+        if (!hasAnySession(sessions)) return;
+        const r = pauseAllSessions(sessions, Date.now());
+        await setSessions(r.next);
+        for (const seg of r.segments) await accrue(seg);
+        await manageTickAlarm();
+        await refreshRules();
+      } else if (wasAway) {
+        await retrackAllVisibleWindows();
+        await refreshRules();
+      }
+    })
+    .catch((err) => console.error('away evaluation failed', err));
+  return awayChain;
+}
+
+chrome.idle.onStateChanged.addListener(() => {
   void (async () => {
     await ready;
-    if (isAwayState(newState)) {
-      if (!hasAnySession(sessions)) return;
-      const r = pauseAllSessions(sessions, Date.now());
-      await setSessions(r.next);
-      for (const seg of r.segments) await accrue(seg);
-      await manageTickAlarm();
-      await refreshRules();
-    } else {
-      await retrackAllVisibleWindows();
-      await refreshRules();
-    }
+    await reevaluateAway();
   })();
 });
 
@@ -403,17 +443,13 @@ async function retrackAllVisibleWindows(): Promise<void> {
 async function init(): Promise<void> {
   chrome.idle.setDetectionInterval(IDLE_DETECTION_SECONDS);
   // Idle design D3: MV3 loses onStateChanged events while the worker is
-  // dead, so always query the CURRENT state before tracking. When the
-  // browser reports the user away, restored sessions are charged only up to
-  // the last moment the worker could see them active, no sessions start, and
-  // the later idle->active transition re-enumerates normally.
-  let wakeState: `${chrome.idle.IdleState}` = 'active';
-  try {
-    wakeState = await chrome.idle.queryState(IDLE_DETECTION_SECONDS);
-  } catch {
-    /* idle API unavailable: degrade to pre-idle-aware behavior */
-  }
-  if (isAwayState(wakeState)) {
+  // dead, so always query the CURRENT state (audio-aware, D5) before
+  // tracking. When the user is away, restored sessions are charged only up
+  // to the last moment the worker could see them active, no sessions start,
+  // and the later return re-enumerates normally.
+  const away = await awayNow();
+  awayKnown = away;
+  if (away) {
     const stored = await loadSessions(chromeKV);
     for (const seg of awayChargePlan(stored ?? null, Date.now())) await accrue(seg);
     await setSessions({});

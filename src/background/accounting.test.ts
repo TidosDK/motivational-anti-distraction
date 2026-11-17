@@ -4,6 +4,7 @@ import {
   closeWindowSession,
   flushDomain,
   hasAnySession,
+  isAwayNow,
   pauseAllSessions,
   setWindowSession,
   tickAll,
@@ -179,6 +180,26 @@ describe('pauseAllSessions (idle away pause)', () => {
       fromMs: T0 + 3_600_000,
       toMs: T0 + 3_660_000,
     });
+  });
+});
+
+describe('isAwayNow (audio-aware away decision, D5)', () => {
+  it('active is never away', () => {
+    expect(isAwayNow('active', false)).toBe(false);
+    expect(isAwayNow('active', true)).toBe(false);
+  });
+
+  it('idle with audible media is NOT away (hands-off watching counts)', () => {
+    expect(isAwayNow('idle', true)).toBe(false);
+  });
+
+  it('idle without audible media is away', () => {
+    expect(isAwayNow('idle', false)).toBe(true);
+  });
+
+  it('locked is away even with audible media', () => {
+    expect(isAwayNow('locked', true)).toBe(true);
+    expect(isAwayNow('locked', false)).toBe(true);
   });
 });
 
