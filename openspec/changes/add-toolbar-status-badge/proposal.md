@@ -11,13 +11,12 @@ glance where temptation starts, at zero interaction cost.
 
 ## What Changes
 
-- The toolbar icon gains a **badge** showing the combined budget's remaining
-  minutes for the current usage day.
-- When the combined budget is fully used, the icon switches to a **red
-  variant** and the badge reads zero.
-- Badge and icon recompute within about a minute of any usage or settings
-  change, after the usage-day reset, and on browser start (badge text
-  survives browser restarts, so stale values must be refreshed).
+- The toolbar **badge** shows the remaining daily budget for the current tab.
+  A site with a limit shows whichever budget has less time left. Other tabs
+  show the combined budget. Long durations use compact hour values.
+- The icon turns **red** and the badge reads `0` when the displayed budget runs out.
+- Badge and icon update on tab switches, navigation, and browser start, and
+  within about a minute of usage, settings changes, or the daily reset.
 - With no blocked sites configured, no badge is shown.
 - No new permissions; the popup, stats, blocking, and ceremony are
   untouched.

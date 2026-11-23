@@ -14,29 +14,30 @@ expiry, and worker init. Icons are generated parametrically by
 
 **Goals:**
 - One source of truth for the badge number, shared with the popup's math.
-- Zero new triggers, timers, or permissions: reuse the refresh path and the
-  existing tick/day-roll cadence.
+- Match each active tab to its site while reusing the current refresh queue,
+  tab event handlers, permissions, and tick cadence.
 - Badge and icon always agree with each other (computed from the same value).
 
 **Non-Goals:**
-- No per-site badge values, no countdown precision better than ~1 minute.
+- No countdown precision better than ~1 minute.
 - No badge click behavior or interactivity (the popup remains the
   interactive surface).
 - No runtime icon rendering (OffscreenCanvas) — pre-rendered PNGs only.
 
 ## Decisions
 
-### D1: Pure `computeBadgeStatus(settings, state, now)` in shared/stats.ts
-Returns `{ badgeText: string, overBudget: boolean }` derived from the
-combined budget's remaining seconds (lazy day roll comes free via
-`loadState` callers). Alternative: compute in the popup and mirror it —
-rejected; the badge must be right even when no UI ever opens.
+### D1: Compute a budget for each active tab
+`computeBadgeStatus(settings, state, now, site?)` uses shared remaining-time
+math. For a tab with a site limit, it uses the smaller of site and combined
+remaining time. Match ordinary URLs with the existing domain rules and the
+extension's blocking page with its `s` parameter. Set Chrome action values
+by tab ID so each browser window shows the status for its own active tab.
 
-### D2: Fixed text ladder, 4 characters max
-`""` when no sites; `"0"` at or over budget; otherwise minutes as `"47"`
-when ≤ 99; `"2h30"` when < 10 h; `"10h+"` beyond. Chrome recommends ≤ 4
-characters; the ladder never exceeds it and degrades to capped forms instead
-of truncating mid-unit.
+### D2: Compact text, three characters max
+Use an empty string for no sites, `0` for exhaustion, and whole minutes
+through `99`. Above that, show whole hours like `3h`, capped at `9h+` from
+10 hours. Show `1` for positive time under one minute. The popup shows the
+exact remaining budget.
 
 ### D3: Red icon is a pre-rendered PNG set
 `tools/make-icons.mjs` loops an `accent` variant (default orange + red) and
@@ -46,11 +47,10 @@ emits `icon-{16,32,48,128}-red.png`; the worker switches via
 runtime image code for one boolean of state).
 
 ### D4: Update inside the existing serialized refresh path
-`updateActionStatus()` is called at the end of `refreshRulesNow()` (which
-init also triggers on worker wake). That already covers every
-usage/settings/roll event, so no new alarms or listeners; the badge may lag
-a rule refresh by at most one diff call, well under the ~1 minute promise.
-`refreshRules`' chain already serializes against concurrent wakes.
+`updateActionStatus()` runs in the existing refresh queue. Usage, settings,
+reset, and worker startup refresh rules and the badge. Tab activation and
+navigation refresh the badge even when usage does not change. A badge-only
+refresh reads storage without writing it or diffing blocking rules.
 
 ### D5: No hysteresis needed for the red switch
 Within a usage day, total usage only increases (accrual is monotonic) and
@@ -65,5 +65,3 @@ removal) are deliberate user actions and may flip the icon immediately.
   runs on startup and calls the update; worst case is a few seconds stale.
 - [Only the toolbar icon changes color, not the puzzle-menu icon] → Accepted
   Chrome behavior; the toolbar is the glance surface.
-- [`10h+` for very large budgets is imprecise] → Accepted; nobody plans
-  around a 10-hour remaining figure, and the popup has exact numbers.

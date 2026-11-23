@@ -1,6 +1,6 @@
 import { nextReset } from '../shared/dayMath';
 import { domainMatches, hostFromUrl } from '../shared/domains';
-import { chromeKV, accrueForeground, loadDeck, loadSessions, loadSettings, loadState, recordOverride, saveDeck, saveSessions, saveState } from '../shared/storage';
+import { chromeKV, accrueForeground, loadDeck, loadSessions, loadSettings, loadState, readStoredState, recordOverride, saveDeck, saveSessions, saveState } from '../shared/storage';
 import { SETTINGS_KEY, STATE_KEY } from '../shared/types';
 import { QUOTES } from '../shared/quotes';
 import { nextQuote } from '../shared/deck';
@@ -103,14 +103,19 @@ async function refreshRulesNow(): Promise<void> {
   await updateActionStatus(settings, state, now).catch((err) => console.error('toolbar status update failed', err));
 }
 
+async function refreshBadgeNow(): Promise<void> {
+  const settings = await loadSettings(chromeKV);
+  const state = await readStoredState(chromeKV);
+  await updateActionStatus(settings, state, Date.now());
+}
+
 /**
- * Serialized rule sync. Triggers (accruals, storage events, alarms) can
- * overlap; running diffs concurrently could double-remove a rule id and
- * throw, so refreshes queue instead.
+ * Serialize rule diffs and badge writes so overlapping tab, storage, and
+ * alarm events cannot apply an older snapshot after a newer one.
  */
 let refreshChain: Promise<void> = Promise.resolve();
-function refreshRules(): Promise<void> {
-  const run = refreshChain.then(refreshRulesNow, refreshRulesNow);
+function refreshRules(scope: 'all' | 'badge' = 'all'): Promise<void> {
+  const run = refreshChain.then(scope === 'all' ? refreshRulesNow : refreshBadgeNow);
   refreshChain = run.catch(() => {});
   return run;
 }
@@ -146,9 +151,8 @@ async function updateWindowTab(windowId: number, tabId: number, url: string | un
   const accrued = r.segment != null;
   await accrue(r.segment);
   await manageTickAlarm();
-  // Only re-derive rules when usage actually changed; skipping the no-op path
-  // keeps the day-roll alarm the sole promptness mechanism at day boundaries.
-  if (accrued) await refreshRules();
+  // Switching tabs or navigating can change the badge without changing usage.
+  await refreshRules(accrued ? 'all' : 'badge');
 }
 
 /** Re-read a window's current active tab and track it. */

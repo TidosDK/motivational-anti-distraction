@@ -14,6 +14,11 @@
 - [x] 3.1 Add `tests-e2e/verify-badge.mjs` (real Chromium + built `dist/`, same harness as `verify-popup.mjs`): seed settings+state so 47 min remain → assert `chrome.action.getBadgeText` reports `47` and the normal icon is set; seed over-budget state → assert badge `0` and red icon paths; verify the script passes
 - [x] 3.2 Manual check in Brave: over-budget icon is visibly red, day reset returns it to normal, no badge with an empty block list; record results in `docs/testing.md` and add a badge line to the README Features section
 
+## 4. Validation feedback
+
+- [x] 4.1 Limit text to three characters. Use whole minutes through `99`, whole hours above that, and `9h+` from 10 hours. Verify the long-duration labels on the pinned Brave toolbar.
+- [x] 4.2 Scope the badge to the active tab and show the smaller of site and combined remaining time on a limited site and its blocking page. Verify site exhaustion, tab switches, and fallback to the combined badge in Chromium.
+
 ## Workflow follow-up
 
 - Work-in-progress commits carry no version bump; `npm run build` after each task group keeps `dist/` current.

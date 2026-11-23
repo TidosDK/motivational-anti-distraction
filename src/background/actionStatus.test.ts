@@ -12,7 +12,11 @@ it('sets the badge and restores the normal icon when the budget recovers or site
     setBadgeBackgroundColor: vi.fn(),
     setIcon: vi.fn(),
   };
-  vi.stubGlobal('chrome', { action });
+  vi.stubGlobal('chrome', {
+    action,
+    tabs: { query: vi.fn().mockResolvedValue([]) },
+    runtime: { getURL: (path: string) => `chrome-extension://test/${path}` },
+  });
 
   const settings = {
     ...DEFAULT_SETTINGS,
@@ -33,7 +37,7 @@ it('sets the badge and restores the normal icon when the budget recovers or site
   await updateActionStatus({ ...settings, sites: [] }, state, now);
 
   expect(action.setBadgeText.mock.calls.map(([details]) => details.text)).toEqual([
-    '0', '2h30', '10h+', '47', '0', '',
+    '0', '2h', '9h+', '47', '0', '',
   ]);
   expect(action.setBadgeBackgroundColor).toHaveBeenNthCalledWith(1, { color: '#b32124' });
   expect(action.setBadgeBackgroundColor).toHaveBeenLastCalledWith({ color: [0, 0, 0, 0] });

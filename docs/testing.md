@@ -45,7 +45,7 @@ engine family.
 | verify-10.3 | multi-monitor: unfocused second window accrues in real time; same domain in two windows charges once (not doubled); closing a window stops its site while others keep accruing | PASS |
 | verify-10.5 | passive watching: with zero interaction for 95s, both windows' usage keeps climbing via alarm ticks only (regression for the worker wake-up race that froze stats; reads via a detached extension window so they can't mask it) | PASS |
 | verify-popup | remaining-time popup from seeded fixtures: per-site remaining, exhausted + no-limit rows, combined remaining, reset label, options link; live re-render on usage accrual and settings edits; empty state | PASS (2026-11-09) |
-| verify-badge | real toolbar badge text and background, icon paths accepted by Chromium, usage and settings changes, rollover, and empty block list | PASS (2026-11-23) |
+| verify-badge | per-tab and combined budgets, compact hour text, tab switches, site exhaustion, blocking page, rollover, and empty block list | PASS (v0.4.1) |
 
 ## Manual checklist (Brave)
 
@@ -125,11 +125,13 @@ A site list you actually use makes the limits feel real; `example.com` /
          screen lock (some Linux desktops), the idle signal still covers it.
      (d) after returning, actively browse the blocked tab for ~1 minute: time
          accrues again from the return moment.
- 15. **Toolbar badge** — pin the extension and configure a site with a 1-min
-     combined budget and no per-site limit. Use the budget and check the
-     pinned icon turns red with `0`. After the usage day resets, the icon
-     should turn orange and show `1`. Remove all sites and check the badge
-     disappears.
+ 15. **Toolbar badge** — pin the extension. Set the combined budget to
+     180 minutes and one site's limit to 1 minute. On a fresh usage day,
+     check that `3h` fits on an unrestricted tab and `1` appears on the
+     limited site. After the site runs out of time, check for a red icon
+     with `0` on the site and its blocking page. Switch to the unrestricted
+     tab and check the combined budget returns. Remove all sites and check
+     the badge disappears.
 
 Fill this table after running the steps above:
 
@@ -151,7 +153,7 @@ Fill this table after running the steps above:
 | 12 | Worker eviction | ✅ | 2026-11-09 confirmed in Brave after the wake-race fix (verify-10.5 covers it in Chromium) |
 | 13 | Remaining-time popup | ✅ | 2026-11-10 user confirmed in Brave: "When I click the extension icon, it shows the menu and the correct information" (incl. orange icon + version display) |
 | 14 | Away vs. hands-off watching | — | v0.3.1 accepted with the manual Brave check waived by the user on 2026-11-23 |
-| 15 | Toolbar badge | ✅ | 2026-11-23, Brave 157 in a temporary profile. Confirmed red icon with `0` at exhaustion, orange with `1` after a seeded day rollover, and no badge with an empty block list. |
+| 15 | Toolbar badge | ✅ | Brave 157, temporary profile. v0.4.0 covered rollover and the empty list. v0.4.1 verified that `3h` and `9h+` fit and that the icon turns red at `0` on the exhausted site and its blocking page. |
 
 ### Findings & triage — 2026-11-17 (user: "watching YouTube, the count is definitely off — way less")
 

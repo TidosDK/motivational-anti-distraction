@@ -86,6 +86,10 @@ export function saveState(kv: KV, state: DayState): Promise<void> {
   return kv.set({ [STATE_KEY]: state });
 }
 
+export function readStoredState(kv: KV): Promise<DayState | undefined> {
+  return rawGet<DayState>(kv, STATE_KEY);
+}
+
 export async function loadHistory(kv: KV): Promise<History> {
   return (await rawGet<History>(kv, HISTORY_KEY)) ?? {};
 }
@@ -123,7 +127,7 @@ export function pruneHistory(history: History, keepDays = 31): History {
  * firing exactly at the reset hour.
  */
 export async function loadState(kv: KV, settings: Settings, now: number): Promise<DayState> {
-  const stored = await rawGet<DayState>(kv, STATE_KEY);
+  const stored = await readStoredState(kv);
   const current = usageDayStart(now, settings.resetHour);
   let state = stored ?? freshState(current);
   // Older builds stored passesActive booleans; day-passes are now timed, so

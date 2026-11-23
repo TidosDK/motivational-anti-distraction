@@ -2,21 +2,26 @@
 
 ## Purpose
 
-Defines the toolbar icon's ambient status: a badge showing the combined
-budget's remaining minutes for the current usage day and a red icon variant
-when the budget is spent — glanceable, read-only, and always fresh.
+Defines the toolbar badge for the current tab and the red icon shown when
+the applicable daily budget runs out.
 
 ## ADDED Requirements
 
-### Requirement: Badge shows combined remaining time
-While at least one site is blocked, the toolbar icon SHALL show a badge with
-the combined budget's remaining time for the current usage day, floored at
-zero, formatted to fit four characters or fewer (e.g. minutes up to 99, an
-`HhMM`-style form up to 9h59, and a capped form beyond that).
+### Requirement: Badge shows remaining time for the current tab
+On a configured site with a daily limit, the badge SHALL show the smaller
+of that site's remaining time and the combined remaining time. The site's
+blocking page SHALL use the same calculation. Other tabs SHALL show the
+combined remaining time. Text SHALL fit in three characters or fewer and
+show whole minutes up to 99, then whole hours, capped at `9h+` from 10 hours.
 
 #### Scenario: Plenty of time left
 - **WHEN** the combined budget has 2 hours 30 minutes left today
-- **THEN** the badge shows a remaining-time indication of about 2h30
+- **AND** the current tab has no configured site limit
+- **THEN** the badge shows `2h`
+
+#### Scenario: An individual site has less time left
+- **WHEN** the current site has 5 minutes left and the combined budget has 40 minutes left
+- **THEN** the badge shows `5`
 
 #### Scenario: Under an hour left
 - **WHEN** the combined budget has 47 minutes left today
@@ -27,14 +32,17 @@ zero, formatted to fit four characters or fewer (e.g. minutes up to 99, an
 - **THEN** the badge shows no text
 
 ### Requirement: Over-budget state is unmistakable
-When the combined budget is fully used for the current usage day, the badge
-SHALL read zero and the toolbar icon SHALL switch to a red variant. When the
-budget is no longer exceeded (the day rolled over, the budget was raised, or
-a site was removed), the icon SHALL return to its normal color.
+When the applicable remaining time reaches zero, the badge SHALL show `0`
+and the toolbar icon SHALL turn red. When time is available, the icon SHALL
+use its normal color.
 
 #### Scenario: Budget spent
 - **WHEN** the combined total used today reaches the combined budget
 - **THEN** the badge shows 0 and the icon turns red
+
+#### Scenario: Site limit spent before the combined budget
+- **WHEN** the current site's limit is used up and combined time remains
+- **THEN** the badge shows `0` and the icon turns red on that site and its blocking page
 
 #### Scenario: New day forgives
 - **WHEN** the usage day rolls over after being over budget
@@ -42,11 +50,14 @@ a site was removed), the icon SHALL return to its normal color.
   longer red
 
 ### Requirement: Status is always current
-The badge and icon SHALL reflect the current usage day and settings. They
-MUST update within about a minute of usage accruing, of a settings change
-that changes the remaining time or over-budget state, and after the usage
-day resets. After a browser (re)start, the system MUST recompute the badge
-and icon rather than leave values left over from the previous session.
+The badge and icon SHALL reflect the usage day, settings, and active tab in
+each window. They MUST update on tab switches and navigation, and within
+about a minute of usage, settings changes, or day reset. Browser startup
+MUST recompute the badge and icon.
+
+#### Scenario: Switch to an unrestricted tab
+- **WHEN** the user switches from a site with its own limit to another tab without one
+- **THEN** the badge and icon reflect the combined remaining time
 
 #### Scenario: Stale badge after restart
 - **WHEN** the browser is restarted while the badge shows a number from

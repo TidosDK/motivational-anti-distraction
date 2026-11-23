@@ -1,6 +1,6 @@
 import { dayKey, nextReset, usageDayStart } from './dayMath';
 import { combinedTotalSeconds } from './exhaustion';
-import type { DayRecord, DayState, History, OverrideEntry, Settings } from './types';
+import type { DayRecord, DayState, History, OverrideEntry, Settings, SiteSetting } from './types';
 
 export interface SiteUsageRow {
   domain: string;
@@ -134,32 +134,34 @@ export interface PopupView {
   resetsAt: number;
 }
 
-function combinedRemainingSeconds(settings: Settings, usedSec: number): number {
-  return Math.max(0, settings.combinedBudgetMin * 60 - usedSec);
+function remainingSeconds(limitMin: number, usedSec: number): number {
+  return Math.max(0, limitMin * 60 - usedSec);
 }
 
-/** A four-character status for the current usage day. */
+/** Compact remaining time, limited by both budgets when the tab has a site limit. */
 export function computeBadgeStatus(
   settings: Settings,
-  state: DayState,
+  state: DayState | undefined,
   now: number,
+  site?: SiteSetting,
 ): { badgeText: string; overBudget: boolean } {
   if (settings.sites.length === 0) return { badgeText: '', overBudget: false };
 
-  const usedSec = state.dayStart === usageDayStart(now, settings.resetHour)
-    ? combinedTotalSeconds(state)
-    : 0;
-  const remainingSec = combinedRemainingSeconds(settings, usedSec);
+  const today = state?.dayStart === usageDayStart(now, settings.resetHour) ? state : undefined;
+  let remainingSec = remainingSeconds(settings.combinedBudgetMin, today ? combinedTotalSeconds(today) : 0);
+  if (site?.limitMin != null) {
+    const siteUsedSec = today?.perSiteSeconds[site.domain] ?? 0;
+    remainingSec = Math.min(remainingSec, remainingSeconds(site.limitMin, siteUsedSec));
+  }
   if (remainingSec === 0) return { badgeText: '0', overBudget: true };
 
   // Show whole minutes remaining and reserve zero for an exhausted budget.
   const minutes = Math.max(1, Math.floor(remainingSec / 60));
   if (minutes <= 99) return { badgeText: String(minutes), overBudget: false };
-  if (minutes >= 600) return { badgeText: '10h+', overBudget: false };
+  if (minutes >= 600) return { badgeText: '9h+', overBudget: false };
 
   const hours = Math.floor(minutes / 60);
-  const minutePart = String(minutes % 60).padStart(2, '0');
-  return { badgeText: `${hours}h${minutePart}`, overBudget: false };
+  return { badgeText: `${hours}h`, overBudget: false };
 }
 
 /**
@@ -173,7 +175,7 @@ export function buildPopupView(settings: Settings, state: DayState, now: number)
     domain,
     usedSec,
     limitMin,
-    remainingSec: limitMin != null ? Math.max(0, limitMin * 60 - usedSec) : null,
+    remainingSec: limitMin != null ? remainingSeconds(limitMin, usedSec) : null,
     fraction: limitMin ? Math.min(1, usedSec / (limitMin * 60)) : null,
   });
 
@@ -195,7 +197,7 @@ export function buildPopupView(settings: Settings, state: DayState, now: number)
     sites,
     combinedUsedSec,
     combinedBudgetMin: settings.combinedBudgetMin,
-    combinedRemainingSec: combinedRemainingSeconds(settings, combinedUsedSec),
+    combinedRemainingSec: remainingSeconds(settings.combinedBudgetMin, combinedUsedSec),
     combinedFraction: Math.min(1, combinedUsedSec / combinedBudgetSec),
     resetsAt: nextReset(now, settings.resetHour),
   };

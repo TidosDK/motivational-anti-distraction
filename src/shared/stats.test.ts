@@ -225,9 +225,10 @@ describe('computeBadgeStatus', () => {
     [2, '1', false],
     [48, '47', false],
     [100, '99', false],
-    [101, '1h40', false],
-    [600, '9h59', false],
-    [601, '10h+', false],
+    [101, '1h', false],
+    [181, '3h', false],
+    [600, '9h', false],
+    [601, '9h+', false],
   ])('formats a %i-minute budget with one minute used', (combinedBudgetMin, badgeText, overBudget) => {
     expect(computeBadgeStatus(settings({ combinedBudgetMin }), state, now)).toEqual({
       badgeText,
@@ -249,7 +250,7 @@ describe('computeBadgeStatus', () => {
 
   it.each([
     [100, '99'],
-    [600, '9h59'],
+    [600, '9h'],
   ])('keeps the lower format just below %i minutes remaining', (combinedBudgetMin, badgeText) => {
     const stateWithOneSecondUsed = { ...state, perSiteSeconds: { 'youtube.com': 1 } };
     expect(computeBadgeStatus(settings({ combinedBudgetMin }), stateWithOneSecondUsed, now)).toEqual({
@@ -271,5 +272,19 @@ describe('computeBadgeStatus', () => {
       badgeText: '1',
       overBudget: false,
     });
+  });
+
+  it('uses the tighter of the site limit and the combined budget', () => {
+    const site = { domain: 'youtube.com', limitMin: 12, passes: 1 };
+    const used = { ...state, perSiteSeconds: { 'youtube.com': 5 * 60, 'instagram.com': 10 * 60 } };
+    expect(computeBadgeStatus(settings(), used, now, site)).toEqual({ badgeText: '7', overBudget: false });
+    expect(computeBadgeStatus(settings({ combinedBudgetMin: 18 }), used, now, site))
+      .toEqual({ badgeText: '3', overBudget: false });
+    expect(computeBadgeStatus(settings({ combinedBudgetMin: 15 }), used, now, site))
+      .toEqual({ badgeText: '0', overBudget: true });
+    expect(computeBadgeStatus(settings(), used, now, { ...site, limitMin: 5 }))
+      .toEqual({ badgeText: '0', overBudget: true });
+    expect(computeBadgeStatus(settings(), used, now, { ...site, limitMin: null }))
+      .toEqual({ badgeText: '1h', overBudget: false });
   });
 });
