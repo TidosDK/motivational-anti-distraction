@@ -65,8 +65,17 @@ Bar height represents combined minutes. The reference line marks the
 combined budget. Red bars indicate that actual usage exceeded the combined
 budget. Green bars include days that only exceeded a site limit. Selected-day
 usage is rounded to whole minutes and shown in hours and minutes. The day
-details and Recent days show a gray status label for site-only overages. The calendar
-implementation remains a disabled display mode using the same daily data.
+details and Recent days show a gray status label for site-only overages.
+The chart uses the combined-budget line and selected-day status to explain
+its colors. The calendar remains a disabled display mode.
+
+### D6: Website usage follows the selected day
+Place the website list below the streaks and totals so the number of rows
+does not affect their position. Rank sites with positive tracked time by
+duration. A horizontal bar and a percentage show each site's share of the
+sum of the selected day's website times. Current-day figures combine saved
+history with live usage, as the chart does. Historical sites remain visible
+after removal from settings. Quiet days show a short empty state.
 
 ## Risks / Trade-offs
 

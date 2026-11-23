@@ -32,6 +32,7 @@ const cellDate = new Intl.DateTimeFormat(undefined, {
   weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
 });
 const cellMinutes = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+const percentage = new Intl.NumberFormat(undefined, { style: 'percent' });
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' });
 const reportDate = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const weekdayName = new Intl.DateTimeFormat(undefined, { weekday: 'short', timeZone: 'UTC' });
@@ -47,6 +48,36 @@ function minuteLabel(minutes: number): string {
 function roundedUsage(minutes: number): string {
   const wholeMinutes = Math.round(minutes);
   return wholeMinutes > 0 ? formatDuration(wholeMinutes * 60) : '0m';
+}
+
+function positiveSiteTimes(perSite: UsageReportDay['perSite']): [string, number][] {
+  return Object.entries(perSite)
+    .filter(([, seconds]) => seconds > 0)
+    .sort((a, b) => b[1] - a[1]);
+}
+
+function renderDaySites(perSite: UsageReportDay['perSite']): HTMLElement {
+  const sites = positiveSiteTimes(perSite);
+  if (!sites.length) return el('p', 'muted', 'No website usage recorded for this day.');
+
+  const total = sites.reduce((sum, [, seconds]) => sum + seconds, 0);
+  const list = el('ul', 'day-site-list');
+  for (const [domain, seconds] of sites) {
+    const share = seconds / total;
+    const duration = seconds < 60 ? '<1m' : roundedUsage(seconds / 60);
+    const shareLabel = share < 0.01 ? `<${percentage.format(0.01)}` : percentage.format(share);
+    const row = el('li', 'day-site');
+    const meter = bar(share);
+    meter.setAttribute('aria-hidden', 'true');
+    row.append(
+      el('span', 'day-site-name', domain),
+      el('span', 'day-site-time', duration),
+      el('span', 'muted day-site-share', shareLabel),
+      meter,
+    );
+    list.append(row);
+  }
+  return list;
 }
 
 function combinedBudgetLabel(exceeded: boolean): string {
@@ -111,8 +142,8 @@ function renderHeatmap(cells: UsageReportDay[]): HTMLElement {
   return scroll;
 }
 
-function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement {
-  const section = el('div', 'weekly-usage');
+function renderWeeklyUsage(report: HistoryViews, budgetMin: number): { chart: HTMLElement; sites: HTMLElement } {
+  const chart = el('div', 'weekly-usage');
   const first = dayIndex(report.days[0].key);
   const latestWeek = dayIndex(report.totals.lastDay) - 6;
   const earliestWeek = latestWeek - Math.floor((report.days.length - 1) / 7) * 7;
@@ -142,15 +173,17 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement
   axis.append(budgetLine);
   plot.append(grid, axis);
 
-  const legend = el('div', 'week-legend muted');
-  for (const exceeded of [false, true]) {
-    const entry = el('span', 'week-legend-entry', combinedBudgetLabel(exceeded));
-    entry.dataset.budget = exceeded ? 'over' : 'within';
-    legend.append(entry);
-  }
   const detail = el('div', 'week-detail');
   detail.setAttribute('aria-live', 'polite');
-  section.append(navigation, summary, plot, legend, detail);
+  chart.append(navigation, summary, plot, detail);
+
+  const sites = el('section', 'day-sites');
+  sites.id = 'day-sites';
+  const siteHeading = el('h3', undefined, 'Website usage');
+  siteHeading.id = 'day-sites-heading';
+  const siteContent = el('div');
+  sites.setAttribute('aria-labelledby', siteHeading.id);
+  sites.append(siteHeading, siteContent);
 
   function drawWeek(): void {
     previous.disabled = week === earliestWeek;
@@ -175,6 +208,7 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement
       if (day.budget.exceededSites.length) {
         detail.append(el('p', 'muted week-overages', `Exceeded ${day.budget.exceededSites.join(', ')}`));
       }
+      siteContent.replaceChildren(renderDaySites(day.perSite));
     }
 
     for (let index = week; index < week + 7; index++) {
@@ -193,6 +227,7 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement
         slot.append(fill);
         button.title = `${cellDate.format(date)} · ${roundedUsage(day.minutes)} · ${combinedBudgetLabel(day.budget.combinedExceeded)}`;
         button.setAttribute('aria-label', button.title);
+        button.setAttribute('aria-controls', sites.id);
         button.addEventListener('click', () => {
           selectedDay = key;
           select(day);
@@ -220,12 +255,13 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement
     drawWeek();
   });
   drawWeek();
-  return section;
+  return { chart, sites };
 }
 
 function renderHistoryReports(report: HistoryViews, budgetMin: number): HTMLElement {
   const section = el('section', 'card history-reports');
   section.append(el('h2', undefined, SHOW_USAGE_CALENDAR ? 'Usage calendar' : 'Daily usage'));
+  let siteBreakdown: HTMLElement | undefined;
 
   if (!report.days.length) {
     section.append(el('p', 'muted', 'No usage days recorded yet.'));
@@ -242,7 +278,9 @@ function renderHistoryReports(report: HistoryViews, budgetMin: number): HTMLElem
     legend.append('More');
     section.append(legend);
   } else {
-    section.append(renderWeeklyUsage(report, budgetMin));
+    const { chart, sites } = renderWeeklyUsage(report, budgetMin);
+    section.append(chart);
+    siteBreakdown = sites;
   }
 
   const summary = el('div', 'history-summary');
@@ -264,6 +302,7 @@ function renderHistoryReports(report: HistoryViews, budgetMin: number): HTMLElem
 
   summary.append(streak, totals);
   section.append(summary);
+  if (siteBreakdown) section.append(siteBreakdown);
   return section;
 }
 
@@ -356,9 +395,7 @@ function render(): void {
       const row = el('div', 'history-row');
       row.appendChild(el('div', 'history-date', day.key));
       row.appendChild(el('div', 'history-total', formatDuration(day.record.totalSec)));
-      const parts = Object.entries(day.record.perSite)
-        .filter(([, sec]) => sec > 0)
-        .sort((a, b) => b[1] - a[1])
+      const parts = positiveSiteTimes(day.record.perSite)
         .map(([d, sec]) => `${d} ${formatDuration(sec)}`);
       row.appendChild(el('div', 'muted history-detail', parts.join(' · ') || 'no usage'));
       const status = el('div', 'history-status');

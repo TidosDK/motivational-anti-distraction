@@ -23,6 +23,20 @@ be informational only.
 - **WHEN** retained usage predates the displayed week and the user goes back a week
 - **THEN** the previous seven-day period is shown, including quiet days
 
+### Requirement: Website usage for the selected day
+The stats view SHALL show a website breakdown for the selected chart day
+below the streaks and totals. It SHALL list sites with positive tracked time
+from most to least used, showing hours and minutes and each site's percentage
+of the selected day's total tracked website time.
+
+#### Scenario: Inspect website usage
+- **WHEN** the user selects a day with 32 minutes on one site, 8 minutes on another, and zero minutes on a third
+- **THEN** the breakdown shows 32m and 80% first, then 8m and 20%, and omits the third site
+
+#### Scenario: Select a quiet day
+- **WHEN** the user selects a day with no tracked website time
+- **THEN** the breakdown shows an empty state with no website rows
+
 ### Requirement: Calendar mode is disabled by default
 The extension SHALL retain the calendar heatmap implementation behind a
 feature flag with a disabled default.

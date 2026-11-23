@@ -16,6 +16,8 @@ retention, not new tracking.
   combined budget status, a reference line, and day selection. Daily usage
   is shown in hours and whole minutes. The calendar implementation remains
   available behind a disabled feature flag.
+- **Website usage** below the streak and totals summaries ranks the selected
+  day's websites by tracked time and shows their share of the day's usage.
 - **Under-budget Streaks**: current and best run of consecutive usage days
   that stayed inside every budget — a record, not a score: losing a streak
   changes nothing about budgets, passes, or ceremony.

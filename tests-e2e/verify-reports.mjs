@@ -44,6 +44,10 @@ export async function verifyReports(launch = launchBrave, inspect) {
     const stale = { version: 1, dayStart: dayAt(1).getTime(), perSiteSeconds: {}, passesUntil: {}, passesUsed: {} };
     const meta = { installTs: dayAt(500).getTime(), estimated: true };
     const minutesByOffset = new Map([[1, 15], [2, 30], [3, 40], [5, 45], [6, 60], [8, 61]]);
+    const multiSiteDays = new Map([
+      [3, { 'news.example.org': 8 * 60, 'example.com': 32 * 60, 'unused.example.net': 0 }],
+      [8, { 'example.com': 30 * 60, 'news.example.org': 31 * 60 }],
+    ]);
     const history = {};
     for (let offset = 400; offset >= 1; offset--) {
       if (offset === 4) continue;
@@ -51,7 +55,7 @@ export async function verifyReports(launch = launchBrave, inspect) {
       const overrides = Array.from({ length: offset === 5 ? 2 : offset === 8 ? 1 : 0 }, () =>
         ({ site: 'example.com', ts: dayAt(offset).getTime(), affirmed: true }),
       );
-      const perSite = offset === 8 ? { 'example.com': 1800, 'news.example.org': sec - 1800 } : { 'example.com': sec };
+      const perSite = multiSiteDays.get(offset) ?? { 'example.com': sec };
       history[keyAt(offset)] = { perSite, totalSec: sec, overrides };
     }
     await page.evaluate((data) => chrome.storage.local.set(data), { settings, state: stale, history, meta });
@@ -71,6 +75,7 @@ export async function verifyReports(launch = launchBrave, inspect) {
     const installAge = page.locator('#stats > footer:last-child .report-install');
     assert.equal(await installAge.textContent(), '500 usage days since install (estimated from retained history)');
     assert.equal(await page.locator('.heatmap-grid').count(), 0, 'calendar mode is off by default');
+    assert.equal(await page.locator('.week-legend').count(), 0, 'the weekly chart legend is removed');
     assert.equal(await page.locator('.week-day').count(), 7);
     assert.equal(await page.locator('.week-average-label').textContent(), 'Daily average');
     const average = page.locator('.week-average-value');
@@ -110,16 +115,39 @@ export async function verifyReports(launch = launchBrave, inspect) {
     assert.equal(await rowStatus(8).getAttribute('data-budget'), 'over');
     assert.equal(await rowStatus(8).getAttribute('title'), null, 'a combined-only overage names no sites');
 
+    const siteUsage = page.getByRole('region', { name: 'Website usage' });
+    assert.equal(await page.locator('.history-summary + .day-sites').count(), 1, 'the breakdown sits below both summaries');
+    const siteRows = () => siteUsage.getByRole('listitem').evaluateAll((rows) => rows.map((row) => [
+      row.querySelector('.day-site-name').textContent,
+      row.querySelector('.day-site-time').textContent,
+      row.querySelector('.day-site-share').textContent,
+      row.querySelector('.meter-fill').style.width,
+    ]));
+    const summaryTop = () => page.locator('.history-summary').evaluate((el) => el.getBoundingClientRect().top + scrollY);
+    await day(4).click();
+    assert.deepEqual(await siteRows(), [], 'an unrecorded day has no website rows');
+    assert.ok(await siteUsage.getByText('No website usage recorded for this day.').isVisible());
+    const quietSummaryTop = await summaryTop();
+    await day(1).click();
+    assert.equal(await summaryTop(), quietSummaryTop, 'adding a website row leaves the summaries in place');
+    assert.deepEqual(await siteRows(), [['example.com', '15m', '100%', '100%']]);
+
     await day(3).click();
     assert.equal(await day(3).getAttribute('aria-pressed'), 'true');
     assert.equal(await page.locator('.week-detail strong').textContent(), '40m');
     assert.equal(await page.locator('.week-detail .budget-status').getAttribute('data-budget'), 'site');
     assert.equal(await page.locator('.week-overages').textContent(), 'Exceeded example.com');
+    assert.deepEqual(await siteRows(), [
+      ['example.com', '32m', '80%', '80%'], ['news.example.org', '8m', '20%', '20%'],
+    ], 'sites are ordered by time and zero-usage sites are omitted');
     if (inspect) await inspect(page);
 
     await previousWeek.click();
     assert.match(await day(8).getAttribute('aria-label'), /1h 1m · Over combined budget$/);
     assert.equal(await barStatus(8), 'over');
+    await day(8).press('Enter');
+    const earlierSites = [['news.example.org', '31m', '51%', '51%'], ['example.com', '30m', '49%', '49%']];
+    assert.deepEqual(await siteRows(), earlierSites, 'keyboard selection updates the breakdown in older weeks');
     assert.ok(await nextWeek.isEnabled());
     const previousRange = await page.locator('.week-range').textContent();
     const edited = { ...settings, combinedBudgetMin: 90, sites: [{ ...settings.sites[0], limitMin: 90 }, settings.sites[1]] };
@@ -131,6 +159,8 @@ export async function verifyReports(launch = launchBrave, inspect) {
     assert.match(await day(8).getAttribute('aria-label'), /1h 1m · Within combined budget$/);
     assert.equal(await barStatus(8), 'within');
     assert.equal(await rowStatus(3).textContent(), 'Within combined budget');
+    assert.equal(await day(8).getAttribute('aria-pressed'), 'true');
+    assert.deepEqual(await siteRows(), earlierSites, 'live updates preserve the selected day and its breakdown');
     assert.deepEqual(await page.evaluate(() => chrome.storage.local.get(['history', 'state', 'meta'])), saved,
       're-scoring leaves usage, passes, history, and install metadata intact');
     await nextWeek.click();
@@ -145,13 +175,17 @@ export async function verifyReports(launch = launchBrave, inspect) {
     assert.match(await installAge.textContent(), /^500 usage days since install/);
 
     await page.evaluate((data) => chrome.storage.local.set(data), {
-      history: {}, state: { ...saved.state, perSiteSeconds: { 'example.com': 132.98 * 60 } },
+      history: { [keyAt(0)]: { perSite: { 'example.com': 60 }, totalSec: 60, overrides: [] } },
+      state: { ...saved.state, perSiteSeconds: { 'example.com': 132.98 * 60 - 70, 'brief.example.net': 10 } },
     });
     const singleDate = await dateRange(0);
     await waitUntil(async () => (await windowLabel.textContent()) === singleDate, 'a one-day report shows a single date');
     assert.equal(await page.locator('.week-detail strong').textContent(), '2h 13m');
     assert.match(await day(0).getAttribute('aria-label'), /2h 13m · Over combined budget$/);
-    console.log('verify-reports: passed retention, weekly navigation, daily budget labels, totals, and live re-scoring');
+    assert.deepEqual(await siteRows(), [
+      ['example.com', '2h 13m', '100%', '100%'], ['brief.example.net', '<1m', '<1%', '0%'],
+    ], 'today combines stored and active time and includes visits under a minute');
+    console.log('verify-reports: passed retention, weekly navigation, website breakdown, budget labels, totals, and live re-scoring');
   } finally {
     await ctx.close();
   }

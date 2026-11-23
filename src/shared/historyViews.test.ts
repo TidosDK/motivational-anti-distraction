@@ -25,6 +25,7 @@ describe('buildHistoryViews', () => {
     const view = buildHistoryViews(history, settings, state, now);
     expect(view.streaks).toEqual({ current: 2, best: 3 });
     expect(view.days.map(({ minutes }) => minutes)).toEqual([10, 0, 0, 61, 25, 20]);
+    expect(view.days[2].perSite).toEqual({});
     expect(view.days[3].budget).toEqual({ combinedExceeded: false, exceededSites: ['example.com'] });
     expect(buildStatsView(settings, state, history, now).history[1].budget).toEqual(view.days[3].budget);
 
@@ -53,6 +54,7 @@ describe('buildHistoryViews', () => {
     const state = { ...today, perSiteSeconds: { 'example.com': 91.25 } };
     const view = buildHistoryViews(history, settings, state, now);
     expect(view.days[1].minutes).toBe(211.25 / 60);
+    expect(view.days[1].perSite).toEqual({ 'example.com': 211.25 });
     expect(view.totals).toEqual({
       trackedSec: 391.25, overrideCount: 1, firstDay: '2026-11-14', lastDay: '2026-11-15', dayCount: 2,
     });
@@ -81,7 +83,8 @@ describe('buildHistoryViews', () => {
     const state = { ...today, perSiteSeconds: { 'example.com': 60 } };
     const first = buildHistoryViews({}, settings, state, now, install);
     expect(first.days).toEqual([{
-      key: '2026-11-15', minutes: 1, bucket: 1, budget: { combinedExceeded: false, exceededSites: [] },
+      key: '2026-11-15', minutes: 1, perSite: { 'example.com': 60 }, bucket: 1,
+      budget: { combinedExceeded: false, exceededSites: [] },
     }]);
     expect(first.streaks).toEqual({ current: 1, best: 1 });
   });

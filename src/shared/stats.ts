@@ -129,6 +129,7 @@ export function buildStatsView(
 export interface UsageReportDay {
   key: string;
   minutes: number;
+  perSite: Readonly<DayRecord['perSite']>;
   bucket: number;
   budget: UsageBudgetStatus;
 }
@@ -192,7 +193,7 @@ export function buildHistoryViews(
     const seconds = record?.totalSec ?? 0;
     const bucket = seconds > 0 ? Math.min(5, Math.ceil(4 * seconds / combinedLimitSec)) : 0;
     const budget = record ? getUsageBudgetStatus(settings, record) : { combinedExceeded: false, exceededSites: [] };
-    days.push({ key: keyAtDayIndex(index), minutes: seconds / 60, bucket, budget });
+    days.push({ key: keyAtDayIndex(index), minutes: seconds / 60, perSite: record?.perSite ?? {}, bucket, budget });
 
     trackedSec += seconds;
     overrideCount += record?.overrides.length ?? 0;

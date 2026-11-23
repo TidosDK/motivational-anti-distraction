@@ -45,6 +45,7 @@ The friction is the feature.
   logged with timestamps. No passes left ⇒ hard block until the day rolls.
 - **Usage stats** — today's per-site meters, budget, and override log. A
   weekly bar chart shows daily usage and a combined-budget reference line.
+  Select a day to see each used website's time and share of the day's usage.
   Red marks days over the combined budget. Recent days also flags site-only
   overages, and streaks account for both kinds of limits. Up to 370 recorded
   days are retained.
