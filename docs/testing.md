@@ -108,8 +108,7 @@ A site list you actually use makes the limits feel real; `example.com` /
      the popup open while a blocked site plays in another window: its
      remaining time ticks down.
  14. **Away time doesn't count — but hands-off watching does (idle/lock)** —
-     system idle can't be simulated by the automated scripts, so this step is
-     the verification of record:
+     real system idle and screen lock require a manual check in Brave:
      (a) hands-off video counts — play a YouTube video (with sound) on a
          blocked site and touch nothing for 5 minutes: the stats gain ≈5 min.
          Pause the video and stop touching everything: the meter stops within
@@ -144,7 +143,7 @@ Fill this table after running the steps above:
 | 11 | Brave Shields | — | Accepted untested (2026-11-09, by agreement); no interference observed in weeks of daily driving |
 | 12 | Worker eviction | ✅ | 2026-11-09 confirmed in Brave after the wake-race fix (verify-10.5 covers it in Chromium) |
 | 13 | Remaining-time popup | ✅ | 2026-11-10 user confirmed in Brave: "When I click the extension icon, it shows the menu and the correct information" (incl. orange icon + version display) |
-| 14 | Away vs. hands-off watching | ⬜ | Manual-only (idle events can't be simulated by scripts); verify a-d per step 14 (0.3.1: audio-aware pause fix for "YouTube counts way less") |
+| 14 | Away vs. hands-off watching | — | v0.3.1 accepted with the manual Brave check waived by the user on 2026-11-23 |
 
 ### Findings & triage — 2026-11-17 (user: "watching YouTube, the count is definitely off — way less")
 
@@ -161,9 +160,7 @@ Fill this table after running the steps above:
   or the screen locks.
 - **Verification**: unit tests for the decision (isAwayNow); wake-guard e2e
   re-proven both branches (away wake charges exactly sinceMs..savedAt,
-  active wake charges 0); verify-10.5 passive counting unaffected. Manual
-  step 14 (rewritten with the hands-off check) remains the verification of
-  record.
+  active wake charges 0); verify-10.5 passive counting unaffected.
 
 ### Findings & triage — 2026-11-08 (user: "still doesn't count properly")
 
