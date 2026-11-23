@@ -39,6 +39,8 @@ label input { margin-left: 0.5rem; }
 form#add-site { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.75rem; }
 .error { color: #c0392b; }
 .hint, #save-status, p#empty-hint { color: var(--muted); font-size: 0.9rem; }
+.data-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+#data-status { white-space: pre-line; font-size: 0.9rem; }
 
 /* Interstitial */
 body.ritual { display: grid; place-items: center; min-height: 100vh; padding: 1rem; }

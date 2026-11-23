@@ -1,5 +1,5 @@
 import '../../shared/style.css';
-import { chromeKV, loadSettings, loadState } from '../../shared/storage';
+import { loadUsageSnapshot } from '../../shared/storage';
 import { buildPopupView, formatDuration } from '../../shared/stats';
 
 const popup = document.querySelector<HTMLElement>('#popup')!;
@@ -32,9 +32,7 @@ function fmtReset(ts: number, now: number): string {
 
 function render(): void {
   void (async () => {
-    const now = Date.now();
-    const settings = await loadSettings(chromeKV);
-    const state = await loadState(chromeKV, settings, now);
+    const { settings, state, now } = await loadUsageSnapshot();
     const view = buildPopupView(settings, state, now);
 
     popup.textContent = '';

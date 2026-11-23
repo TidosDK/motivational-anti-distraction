@@ -46,6 +46,19 @@
       </section>
 
       <p id="save-status" aria-live="polite"></p>
+
+      <section>
+        <h2>Your data</h2>
+        <p class="hint">The JSON backup contains your settings, usage, override history, and quote-deck position. Importing a backup replaces those data.</p>
+        <div class="data-actions">
+          <button type="button" id="export-backup">Export backup</button>
+          <button type="button" id="import-backup">Import backup</button>
+          <button type="button" id="export-history">History CSV</button>
+          <button type="button" id="export-overrides">Overrides CSV</button>
+        </div>
+        <input id="backup-file" type="file" accept=".json,application/json" hidden />
+        <p id="data-status" role="status" aria-live="polite"></p>
+      </section>
     </main>
     <script type="module" src="/src/pages/options/main.ts"></script>
   </body>

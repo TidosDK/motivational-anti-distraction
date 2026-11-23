@@ -23,12 +23,14 @@ export interface KV {
 }
 
 export const chromeKV: KV = {
-  get: (keys) =>
-    new Promise((resolve) => {
-      chrome.storage.local.get(keys, (items) => resolve(items as Record<string, unknown>));
-    }),
-  set: (items) => new Promise((resolve) => chrome.storage.local.set(items, () => resolve())),
+  get: (keys) => chrome.storage.local.get(keys),
+  set: (items) => chrome.storage.local.set(items),
 };
+
+/** Keep a restore from interleaving with a read-modify-write in another extension context. */
+export async function withStorageLock<T>(operation: () => Promise<T>): Promise<T> {
+  return await navigator.locks.request('extension-data', operation);
+}
 
 /** In-memory KV for tests. */
 export function memoryKV(initial: Record<string, unknown> = {}): KV {
@@ -50,18 +52,20 @@ async function rawGet<T>(kv: KV, key: string): Promise<T | undefined> {
   return res[key] as T | undefined;
 }
 
-export async function loadSettings(kv: KV): Promise<Settings> {
-  const raw = await rawGet<Partial<Settings>>(kv, SETTINGS_KEY);
-  if (!raw) return structuredClone(DEFAULT_SETTINGS);
-  const merged: Settings = {
-    ...structuredClone(DEFAULT_SETTINGS),
-    ...raw,
-    sites: Array.isArray(raw.sites) ? raw.sites : [],
+export function normalizeSettings(raw?: Partial<Settings>): Settings {
+  const passSessionMin = raw?.passSessionMin;
+  return {
+    version: raw?.version ?? DEFAULT_SETTINGS.version,
+    sites: Array.isArray(raw?.sites) ? raw.sites : [],
+    combinedBudgetMin: raw?.combinedBudgetMin ?? DEFAULT_SETTINGS.combinedBudgetMin,
+    resetHour: raw?.resetHour ?? DEFAULT_SETTINGS.resetHour,
+    passSessionMin: passSessionMin != null && Number.isFinite(passSessionMin) && passSessionMin >= 1
+      ? passSessionMin : DEFAULT_SETTINGS.passSessionMin,
   };
-  if (!Number.isFinite(merged.passSessionMin) || merged.passSessionMin < 1) {
-    merged.passSessionMin = DEFAULT_SETTINGS.passSessionMin;
-  }
-  return merged;
+}
+
+export async function loadSettings(kv: KV): Promise<Settings> {
+  return normalizeSettings(await rawGet<Partial<Settings>>(kv, SETTINGS_KEY));
 }
 
 export function saveSettings(kv: KV, settings: Settings): Promise<void> {
@@ -88,6 +92,17 @@ export function saveState(kv: KV, state: DayState): Promise<void> {
 
 export function readStoredState(kv: KV): Promise<DayState | undefined> {
   return rawGet<DayState>(kv, STATE_KEY);
+}
+
+export function normalizeState(state: Omit<DayState, 'passesUntil'> & { passesUntil?: DayState['passesUntil'] }): DayState {
+  // Older builds stored passesActive booleans. Those passes are expired.
+  return {
+    version: state.version,
+    dayStart: state.dayStart,
+    perSiteSeconds: state.perSiteSeconds,
+    passesUntil: state.passesUntil ?? {},
+    passesUsed: state.passesUsed,
+  };
 }
 
 export async function loadHistory(kv: KV): Promise<History> {
@@ -129,20 +144,26 @@ export function pruneHistory(history: History, keepDays = 31): History {
 export async function loadState(kv: KV, settings: Settings, now: number): Promise<DayState> {
   const stored = await readStoredState(kv);
   const current = usageDayStart(now, settings.resetHour);
-  let state = stored ?? freshState(current);
-  // Older builds stored passesActive booleans; day-passes are now timed, so
-  // any pre-upgrade pass is treated as already expired.
-  if (!state.passesUntil) state.passesUntil = {};
-  delete (state as Partial<DayState> & { passesActive?: unknown }).passesActive;
-  if (state.dayStart !== current) {
+  if (stored?.dayStart === current) return normalizeState(stored);
+
+  const state = freshState(current);
+  if (stored) {
     const history = await loadHistory(kv);
-    const key = dayKey(state.dayStart);
-    history[key] = mergeDayRecord(history[key] ?? emptyRecord(), state);
-    await saveHistory(kv, pruneHistory(history));
-    state = freshState(current);
+    const key = dayKey(stored.dayStart);
+    history[key] = mergeDayRecord(history[key] ?? emptyRecord(), stored);
+    await kv.set({ [HISTORY_KEY]: pruneHistory(history), [STATE_KEY]: state });
+  } else {
+    await saveState(kv, state);
   }
-  await saveState(kv, state);
   return state;
+}
+
+export function loadUsageSnapshot(): Promise<{ settings: Settings; state: DayState; now: number }> {
+  return withStorageLock(async () => {
+    const settings = await loadSettings(chromeKV);
+    const now = Date.now();
+    return { settings, state: await loadState(chromeKV, settings, now), now };
+  });
 }
 
 /**
@@ -172,10 +193,9 @@ export async function accrueForeground(
   const history = await loadHistory(kv);
   const key = dayKey(base.dayStart);
   history[key] = mergeDayRecord(history[key] ?? emptyRecord(), base);
-  await saveHistory(kv, pruneHistory(history));
   const fresh = freshState(boundary);
   fresh.perSiteSeconds[domain] = post;
-  await saveState(kv, fresh);
+  await kv.set({ [HISTORY_KEY]: pruneHistory(history), [STATE_KEY]: fresh });
 }
 
 /** Record that a day-pass was spent on `site` (with the affirmed checklist). */

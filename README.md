@@ -100,6 +100,16 @@ git tag in one step. `npm version` needs a clean tree: commit work first,
 then bump. The build fails loudly if the version isn't a valid Chrome
 manifest version (1–4 dot-separated integers — no `-beta` suffixes).
 
+## Your data
+
+In Options, **Your data** lets you download a JSON backup of your settings,
+current usage and passes, retained history, and quote-deck position. Importing
+a valid backup replaces those data after you confirm. The two CSV downloads
+contain retained usage by day and the override log.
+
+Downloads and imports work offline. The files are plaintext and can include
+your site list and activity history.
+
 ## Testing
 
 Unit tests: `npm test`. Real-browser verifications and the manual Brave

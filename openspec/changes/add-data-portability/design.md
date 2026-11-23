@@ -5,9 +5,9 @@
 See proposal.md — Why. All data is four keys in `chrome.storage.local`
 (`settings`, `state`, `history`, `deck` — see src/shared/types.ts), each
 with an existing tolerant loader (loadSettings/loadState/…). The options
-page already writes settings and the background worker already refreshes
-enforcement on any `storage.onChanged`, so a correctly-applied import needs
-no new plumbing. `SCHEMA_VERSION` exists but has no migration machinery.
+page already writes settings and the background worker refreshes enforcement
+on `storage.onChanged`. Rule refresh also schedules expiry for active passes
+restored from a backup. `SCHEMA_VERSION` exists but has no migration machinery.
 
 ## Goals / Non-Goals
 
@@ -49,6 +49,9 @@ validators sharing the normalization logic of the existing loaders
 typed payload or a list of human-readable errors. On success the options
 page writes all four keys in a single `chrome.storage.local.set` — the
 operation is atomic per call, so a rejected parse never reaches storage.
+Extension pages and the worker share a storage lock so a usage update,
+day roll, or deck draw cannot overwrite data read before a restore. Export
+reads the four sections under the same lock.
 Sanity gate: `state.dayStart` more than 24 h in the future is rejected as
 corrupt. Alternative: per-key try/catch with partial application — rejected
 (half-imported state is worse than none).

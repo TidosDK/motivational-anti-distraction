@@ -20,6 +20,7 @@ node tests-e2e/verify-9.3.mjs   # ~2 min: waits for a real 1-min pass session
 node tests-e2e/verify-10.3.mjs  # ~4.5 min: two windows, real-time accrual
 node tests-e2e/verify-popup.mjs # remaining-time popup render + live update
 node tests-e2e/verify-badge.mjs # toolbar badge, icon paths, budget changes, and rollover
+node tests-e2e/verify-portability.mjs # real downloads and restore into a fresh profile
 ```
 
 The e2e verifications drive a real Chromium with `dist/` loaded as an
@@ -46,6 +47,7 @@ engine family.
 | verify-10.5 | passive watching: with zero interaction for 95s, both windows' usage keeps climbing via alarm ticks only (regression for the worker wake-up race that froze stats; reads via a detached extension window so they can't mask it) | PASS |
 | verify-popup | remaining-time popup from seeded fixtures: per-site remaining, exhausted + no-limit rows, combined remaining, reset label, options link; live re-render on usage accrual and settings edits; empty state | PASS (2026-11-09) |
 | verify-badge | minute suffixes, hidden badges on tabs without an individual limit, site exhaustion, blocking page, and rollover | PASS (v0.4.2) |
+| verify-portability | offline JSON and CSV downloads, atomic fresh-profile restore, cancelled and invalid files, restored popup, blocking, active pass alarm, and deck position | PASS (v0.5.0) |
 
 ## Manual checklist (Brave)
 
@@ -131,6 +133,11 @@ A site list you actually use makes the limits feel real; `example.com` /
      site and its blocking page. Switch to a site outside the block list or
      a site that uses only the combined budget. Both should show the plain
      orange icon.
+ 16. **Data portability** — in Options, download the backup and both CSVs.
+     Open the CSVs in a spreadsheet and check that the columns line up. In
+     a fresh profile, import the JSON and confirm the popup matches the
+     original. Try importing an invalid JSON file and check that the
+     restored settings and usage stay in place.
 
 Fill this table after running the steps above:
 
@@ -153,6 +160,7 @@ Fill this table after running the steps above:
 | 13 | Remaining-time popup | ✅ | 2026-11-10 user confirmed in Brave: "When I click the extension icon, it shows the menu and the correct information" (incl. orange icon + version display) |
 | 14 | Away vs. hands-off watching | — | v0.3.1 accepted with the manual Brave check waived by the user on 2026-11-23 |
 | 15 | Toolbar badge | ✅ | Brave 157, temporary profile. `17m` and `99m` fit in v0.4.2. Navigating away from an exhausted site restored the plain orange icon. v0.4.1 checks covered `3h`, `9h+`, and the blocking page. User confirmed v0.4.2 on 2026-11-23. |
+| 16 | Data portability | ✅ | Brave 157 downloaded all three files and restored matching popup totals in a fresh profile. Cancelled and invalid imports preserved storage. LibreOffice Calc opened both CSVs with matching headers and values. |
 
 ### Findings & triage — 2026-11-17 (user: "watching YouTube, the count is definitely off — way less")
 

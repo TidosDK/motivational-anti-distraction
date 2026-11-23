@@ -1,12 +1,14 @@
 import '../../shared/style.css';
+import { buildBackup, buildHistoryCsv, buildOverridesCsv, parseBackup } from '../../shared/backup';
+import { dayKey } from '../../shared/dayMath';
 import { normalizeDomain } from '../../shared/domains';
-import { chromeKV, loadSettings, saveSettings } from '../../shared/storage';
-import type { Settings } from '../../shared/types';
+import { chromeKV, loadDeck, loadHistory, loadSettings, loadState, normalizeSettings, saveSettings, withStorageLock } from '../../shared/storage';
+import { DECK_KEY, HISTORY_KEY, SETTINGS_KEY, STATE_KEY, type Settings } from '../../shared/types';
 
 document.querySelector<HTMLElement>('#version')!.textContent =
   `v${chrome.runtime.getManifest().version}`;
 
-const settings: Settings = await loadSettings(chromeKV);
+let settings: Settings = await loadSettings(chromeKV);
 
 const tbody = document.querySelector('#site-table tbody')!;
 const emptyHint = document.querySelector<HTMLElement>('#empty-hint')!;
@@ -21,8 +23,13 @@ const saveStatus = document.querySelector<HTMLElement>('#save-status')!;
 let statusTimer: ReturnType<typeof setTimeout> | undefined;
 
 async function save(message = 'Saved'): Promise<void> {
-  await saveSettings(chromeKV, settings);
-  saveStatus.textContent = message;
+  const snapshot = structuredClone(settings);
+  try {
+    await withStorageLock(() => saveSettings(chromeKV, snapshot));
+    saveStatus.textContent = message;
+  } catch (error) {
+    saveStatus.textContent = errorMessage('Could not save settings.', error);
+  }
   clearTimeout(statusTimer);
   statusTimer = setTimeout(() => (saveStatus.textContent = ''), 2000);
 }
@@ -100,25 +107,140 @@ addForm.addEventListener('submit', (e) => {
   void save(`Blocked ${domain}`);
 });
 
-budgetInput.value = String(settings.combinedBudgetMin);
 budgetInput.addEventListener('change', () => {
   settings.combinedBudgetMin = Math.max(1, Math.round(Number(budgetInput.value)) || 1);
   budgetInput.value = String(settings.combinedBudgetMin);
   void save();
 });
 
-resetInput.value = String(settings.resetHour);
 resetInput.addEventListener('change', () => {
   settings.resetHour = Math.min(23, Math.max(0, Math.round(Number(resetInput.value)) || 0));
   resetInput.value = String(settings.resetHour);
   void save();
 });
 
-passSessionInput.value = String(settings.passSessionMin);
 passSessionInput.addEventListener('change', () => {
   settings.passSessionMin = Math.max(1, Math.round(Number(passSessionInput.value)) || 1);
   passSessionInput.value = String(settings.passSessionMin);
   void save();
 });
 
-renderSites();
+function renderSettings(): void {
+  budgetInput.value = String(settings.combinedBudgetMin);
+  resetInput.value = String(settings.resetHour);
+  passSessionInput.value = String(settings.passSessionMin);
+  renderSites();
+}
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local' || !changes[SETTINGS_KEY]) return;
+  const restored = normalizeSettings(changes[SETTINGS_KEY].newValue as Partial<Settings> | undefined);
+  if (JSON.stringify(settings) === JSON.stringify(restored)) return;
+  settings = restored;
+  renderSettings();
+});
+
+renderSettings();
+
+const backupFile = document.querySelector<HTMLInputElement>('#backup-file')!;
+const importButton = document.querySelector<HTMLButtonElement>('#import-backup')!;
+const dataStatus = document.querySelector<HTMLElement>('#data-status')!;
+
+function errorMessage(message: string, error: unknown): string {
+  return error instanceof Error ? `${message} ${error.message}` : message;
+}
+
+function showDataStatus(message: string, isError = false): void {
+  dataStatus.textContent = message;
+  dataStatus.classList.toggle('error', isError);
+}
+
+function download(content: string, type: string, filename: string): void {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  // Give the browser time to accept the download before revoking its URL.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showDataStatus(`Exported ${filename}.`);
+}
+
+async function exportBackup(): Promise<void> {
+  try {
+    const backup = await withStorageLock(async () => {
+      const now = Date.now();
+      const settings = await loadSettings(chromeKV);
+      const state = await loadState(chromeKV, settings, now);
+      const history = await loadHistory(chromeKV);
+      const deck = await loadDeck(chromeKV);
+      return buildBackup(settings, state, history, deck, now);
+    });
+    download(JSON.stringify(backup, null, 2) + '\n', 'application/json', `anti-distraction-backup-${dayKey(Date.now())}.json`);
+  } catch (error) {
+    showDataStatus(errorMessage('Could not export backup.', error), true);
+  }
+}
+
+async function exportCsv(kind: 'history' | 'overrides'): Promise<void> {
+  try {
+    const history = await withStorageLock(() => loadHistory(chromeKV));
+    const content = kind === 'history' ? buildHistoryCsv(history) : buildOverridesCsv(history);
+    download(content, 'text/csv;charset=utf-8', `anti-distraction-${kind}-${dayKey(Date.now())}.csv`);
+  } catch (error) {
+    showDataStatus(errorMessage('Could not export CSV.', error), true);
+  }
+}
+
+function readFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.onabort = () => reject(new Error('The file read was cancelled.'));
+    reader.readAsText(file);
+  });
+}
+
+async function importBackup(file: File): Promise<void> {
+  importButton.disabled = true;
+  showDataStatus('Checking backup…');
+  try {
+    const result = parseBackup(await readFile(file));
+    if (!result.ok) {
+      showDataStatus(result.errors.join('\n'), true);
+      return;
+    }
+    if (!window.confirm('Replace the current settings, usage, history, and quote-deck position with this backup?')) {
+      showDataStatus('Import cancelled.');
+      return;
+    }
+
+    const data = result.data;
+    await withStorageLock(() => chromeKV.set({
+      [SETTINGS_KEY]: data.settings,
+      [STATE_KEY]: data.state,
+      [HISTORY_KEY]: data.history,
+      [DECK_KEY]: data.deck,
+    }));
+    settings = data.settings;
+    renderSettings();
+    showDataStatus('Backup restored.');
+  } catch (error) {
+    showDataStatus(errorMessage('Could not restore backup.', error), true);
+  } finally {
+    importButton.disabled = false;
+  }
+}
+
+document.querySelector('#export-backup')!.addEventListener('click', () => void exportBackup());
+document.querySelector('#export-history')!.addEventListener('click', () => void exportCsv('history'));
+document.querySelector('#export-overrides')!.addEventListener('click', () => void exportCsv('overrides'));
+importButton.addEventListener('click', () => backupFile.click());
+backupFile.addEventListener('change', () => {
+  const file = backupFile.files?.[0];
+  backupFile.value = '';
+  if (file && !importButton.disabled) void importBackup(file);
+});

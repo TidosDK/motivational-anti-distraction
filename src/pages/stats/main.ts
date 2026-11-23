@@ -1,5 +1,5 @@
 import '../../shared/style.css';
-import { chromeKV, loadHistory, loadSettings, loadState } from '../../shared/storage';
+import { chromeKV, loadHistory, loadSettings, loadState, withStorageLock } from '../../shared/storage';
 import { buildStatsView, formatDuration } from '../../shared/stats';
 
 const stats = document.querySelector<HTMLElement>('#stats')!;
@@ -25,10 +25,12 @@ function bar(fraction: number): HTMLElement {
 
 function render(): void {
   void (async () => {
-    const now = Date.now();
-    const settings = await loadSettings(chromeKV);
-    const state = await loadState(chromeKV, settings, now);
-    const history = await loadHistory(chromeKV);
+    const { settings, state, history, now } = await withStorageLock(async () => {
+      const now = Date.now();
+      const settings = await loadSettings(chromeKV);
+      const state = await loadState(chromeKV, settings, now);
+      return { settings, state, history: await loadHistory(chromeKV), now };
+    });
     const view = buildStatsView(settings, state, history, now);
 
     stats.textContent = '';

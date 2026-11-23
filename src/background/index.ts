@@ -1,6 +1,6 @@
 import { nextReset } from '../shared/dayMath';
 import { domainMatches, hostFromUrl } from '../shared/domains';
-import { chromeKV, accrueForeground, loadDeck, loadSessions, loadSettings, loadState, readStoredState, recordOverride, saveDeck, saveSessions, saveState } from '../shared/storage';
+import { chromeKV, accrueForeground, loadDeck, loadSessions, loadSettings, loadState, loadUsageSnapshot, readStoredState, recordOverride, saveDeck, saveSessions, saveState, withStorageLock } from '../shared/storage';
 import { SETTINGS_KEY, STATE_KEY } from '../shared/types';
 import { QUOTES } from '../shared/quotes';
 import { nextQuote } from '../shared/deck';
@@ -61,8 +61,10 @@ async function blockedDomainForUrl(url: string | undefined): Promise<string | nu
 
 async function accrue(seg: Segment | null): Promise<void> {
   if (!seg || seg.toMs <= seg.fromMs) return;
-  const settings = await loadSettings(chromeKV);
-  await accrueForeground(chromeKV, seg.domain, seg.fromMs, seg.toMs, settings);
+  await withStorageLock(async () => {
+    const settings = await loadSettings(chromeKV);
+    await accrueForeground(chromeKV, seg.domain, seg.fromMs, seg.toMs, settings);
+  });
 }
 
 function interstitialUrl(domain: string): string {
@@ -70,9 +72,11 @@ function interstitialUrl(domain: string): string {
 }
 
 async function refreshRulesNow(): Promise<void> {
-  const settings = await loadSettings(chromeKV);
-  const now = Date.now();
-  const state = await loadState(chromeKV, settings, now);
+  const { settings, state, now } = await loadUsageSnapshot();
+  for (const { domain } of settings.sites) {
+    const expiresAt = state.passesUntil[domain];
+    if (expiresAt > now) schedulePassExpiry(domain, expiresAt);
+  }
   const desired: RuleSpec[] = computeBlockedDomains(settings, state, now).map((domain, i) => ({
     id: i + 1,
     domain,
@@ -104,8 +108,10 @@ async function refreshRulesNow(): Promise<void> {
 }
 
 async function refreshBadgeNow(): Promise<void> {
-  const settings = await loadSettings(chromeKV);
-  const state = await readStoredState(chromeKV);
+  const { settings, state } = await withStorageLock(async () => ({
+    settings: await loadSettings(chromeKV),
+    state: await readStoredState(chromeKV),
+  }));
   await updateActionStatus(settings, state, Date.now());
 }
 
@@ -315,8 +321,6 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     })();
   } else if (alarm.name === ROLL_ALARM) {
     void (async () => {
-      const settings = await loadSettings(chromeKV);
-      await loadState(chromeKV, settings, Date.now()); // lazy-rolls if boundary passed
       await refreshRules();
       await scheduleDayRoll();
     })();
@@ -347,10 +351,13 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
 
   if (msg.type === 'nextQuote') {
     void (async () => {
-      const deck = await loadDeck(chromeKV);
-      const r = nextQuote(deck, QUOTES.length, Math.random);
-      await saveDeck(chromeKV, r.deck);
-      sendResponse(QUOTES[r.index]);
+      const quote = await withStorageLock(async () => {
+        const deck = await loadDeck(chromeKV);
+        const r = nextQuote(deck, QUOTES.length, Math.random);
+        await saveDeck(chromeKV, r.deck);
+        return QUOTES[r.index];
+      });
+      sendResponse(quote);
     })();
     return true;
   }
@@ -358,9 +365,7 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
   if (msg.type === 'siteStatus' && msg.domain) {
     void (async () => {
       const domain = msg.domain!;
-      const now = Date.now();
-      const settings = await loadSettings(chromeKV);
-      const state = await loadState(chromeKV, settings, now);
+      const { settings, state, now } = await loadUsageSnapshot();
       const site = settings.sites.find((s) => s.domain === domain);
       if (!site) {
         sendResponse({ known: false });
@@ -382,24 +387,24 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
   if (msg.type === 'spendPass' && msg.domain) {
     void (async () => {
       const domain = msg.domain!;
-      const now = Date.now();
-      const settings = await loadSettings(chromeKV);
-      const state = await loadState(chromeKV, settings, now);
-      if (!settings.sites.some((s) => s.domain === domain)) {
-        sendResponse({ ok: false, reason: 'unknown-site' });
-        return;
-      }
-      const spend = applyPassSpend(state, settings, domain, now);
+      const spend = await withStorageLock(async () => {
+        const now = Date.now();
+        const settings = await loadSettings(chromeKV);
+        const state = await loadState(chromeKV, settings, now);
+        if (!settings.sites.some((s) => s.domain === domain)) return { ok: false, reason: 'unknown-site' } as const;
+
+        const result = applyPassSpend(state, settings, domain, now);
+        if (result.ok && !result.reused) {
+          await saveState(chromeKV, result.state);
+          await recordOverride(chromeKV, settings, domain, now);
+        }
+        return result;
+      });
       if (!spend.ok) {
         sendResponse({ ok: false, reason: spend.reason });
         return;
       }
-      if (!spend.reused) {
-        await saveState(chromeKV, spend.state);
-        await recordOverride(chromeKV, settings, domain, now);
-        schedulePassExpiry(domain, spend.expiresAt);
-        await refreshRules();
-      }
+      if (!spend.reused) await refreshRules();
       sendResponse({ ok: true, url: `https://${domain}`, expiresAt: spend.expiresAt });
     })();
     return true;
