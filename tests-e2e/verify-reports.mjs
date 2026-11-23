@@ -58,41 +58,57 @@ export async function verifyReports(launch = launchBrave, inspect) {
 
     await waitUntil(async () => (await page.locator('.report-window').textContent())?.includes('372 usage days'),
       'the report includes the missing day and the current day in the retained range');
-    assert.equal(await page.locator('.heatmap-grid [data-day]').count(), 372);
     assert.equal(await page.locator('.report-window').textContent(), `${keyAt(371)} – ${keyAt(0)} · 372 usage days`);
     assert.equal(await page.locator('.report-totals').textContent(), '4h 11m tracked · 3 overrides');
     assert.equal(await page.locator('.report-install').textContent(), '500 usage days since install (estimated from retained history)');
     assert.equal(await page.locator('.report-streak').textContent(), 'Current 3 · Best 363 days');
-    const scroll = page.locator('.heatmap-scroll');
-    assert.ok(await scroll.evaluate((el) => el.scrollWidth > el.clientWidth && el.scrollLeft > 0), 'the full calendar opens at the latest days');
+    assert.equal(await page.locator('.heatmap-grid').count(), 0, 'calendar mode is off by default');
+    assert.equal(await page.locator('.week-day').count(), 7);
+    const nextWeek = page.getByRole('button', { name: 'Next week' });
+    const previousWeek = page.getByRole('button', { name: 'Previous week' });
+    assert.ok(await nextWeek.isDisabled());
+    const day = (offset) => page.locator(`.week-day[data-day="${keyAt(offset)}"]`);
+    const rowStatus = (offset) => page.locator('.history-row')
+      .filter({ has: page.getByText(keyAt(offset), { exact: true }) }).locator('.budget-status');
+    assert.match(await day(4).getAttribute('aria-label'), /0 min · Within budget$/);
+    assert.match(await day(1).getAttribute('aria-label'), /15 min · Within budget$/);
+    assert.match(await day(3).getAttribute('aria-label'), /40 min · Over budget$/);
+    assert.equal(await rowStatus(1).textContent(), 'Within budget');
+    assert.equal(await rowStatus(3).textContent(), 'Over budget');
+    assert.equal(await rowStatus(3).getAttribute('title'), 'Exceeded example.com');
+    assert.match(await rowStatus(8).getAttribute('title'), /Combined budget/);
 
-    for (const [offset, minutes, bucket] of [[4, 0, 0], [1, 15, 1], [2, 30, 2], [5, 45, 3], [6, 60, 4], [8, 61, 5]]) {
-      const cell = page.locator(`[data-day="${keyAt(offset)}"]`);
-      assert.equal(await cell.getAttribute('data-bucket'), String(bucket));
-      const title = await cell.getAttribute('title');
-      assert.ok(title.endsWith(`· ${minutes} min`));
-      assert.equal(await cell.getAttribute('aria-label'), title);
-    }
-    await page.locator(`[data-day="${keyAt(1)}"]`).hover();
+    await day(3).click();
+    assert.equal(await day(3).getAttribute('aria-pressed'), 'true');
+    assert.equal(await page.locator('.week-detail strong').textContent(), '40 min');
+    assert.equal(await page.locator('.week-overages').textContent(), 'Exceeded example.com');
     if (inspect) await inspect(page);
 
-    await scroll.evaluate((el) => { el.scrollLeft = 0; });
+    await previousWeek.click();
+    assert.match(await day(8).getAttribute('aria-label'), /61 min · Over budget$/);
+    assert.ok(await nextWeek.isEnabled());
+    const previousRange = await page.locator('.week-range').textContent();
     const edited = { ...settings, combinedBudgetMin: 90, sites: [{ ...settings.sites[0], limitMin: 90 }] };
     await page.evaluate((settings) => chrome.storage.local.set({ settings }), edited);
     await waitUntil(async () => (await page.locator('.report-streak').textContent()) === 'Current 372 · Best 372 days',
       'editing budgets re-scores streaks without a reload');
     assert.equal(await page.locator('.report-totals').textContent(), '4h 11m tracked · 3 overrides');
-    assert.equal(await scroll.evaluate((el) => el.scrollLeft), 0, 'updates preserve the scrolled position');
+    assert.equal(await page.locator('.week-range').textContent(), previousRange, 'updates preserve the displayed week');
+    assert.match(await day(8).getAttribute('aria-label'), /61 min · Within budget$/);
+    assert.equal(await rowStatus(3).textContent(), 'Within budget');
     assert.deepEqual(await page.evaluate(() => chrome.storage.local.get(['history', 'state', 'meta'])), saved,
       're-scoring leaves usage, passes, history, and install metadata intact');
+    await nextWeek.click();
+    assert.ok(await nextWeek.isDisabled());
+    assert.match(await day(3).getAttribute('aria-label'), /40 min · Within budget$/);
 
     const last370Days = Object.fromEntries(Object.entries(saved.history).filter(([key]) => key >= keyAt(369)));
     await page.evaluate((history) => chrome.storage.local.set({ history }), last370Days);
-    await waitUntil(async () => (await page.locator('.heatmap-grid [data-day]').count()) === 370,
+    await waitUntil(async () => (await page.locator('.report-window').textContent())?.endsWith('· 370 usage days'),
       'the report handles an exact 370-day calendar span');
     assert.match(await page.locator('.report-window').textContent(), /· 370 usage days$/);
     assert.match(await page.locator('.report-install').textContent(), /^500 usage days since install/);
-    console.log('verify-reports: passed metadata, retention, calendar cells, totals, and live streak re-scoring');
+    console.log('verify-reports: passed retention, weekly navigation, daily budget labels, totals, and live re-scoring');
   } finally {
     await ctx.close();
   }

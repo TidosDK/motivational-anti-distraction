@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayKey, usageDayStart } from './dayMath';
-import { buildHistoryViews } from './stats';
+import { buildHistoryViews, buildStatsView } from './stats';
 import { freshState } from './storage';
 import { DEFAULT_SETTINGS, type DayRecord, type History } from './types';
 
@@ -24,7 +24,10 @@ describe('buildHistoryViews', () => {
     const state = { ...today, perSiteSeconds: { 'example.com': 20 * 60 } };
     const view = buildHistoryViews(history, settings, state, now);
     expect(view.streaks).toEqual({ current: 2, best: 3 });
-    expect(view.heatmap.map(({ minutes }) => minutes)).toEqual([10, 0, 0, 61, 25, 20]);
+    expect(view.days.map(({ minutes }) => minutes)).toEqual([10, 0, 0, 61, 25, 20]);
+    expect(view.days[3].exceededBudgets).toEqual(['example.com']);
+    expect(buildStatsView(settings, state, history, now).history[1].exceededBudgets)
+      .toEqual(view.days[3].exceededBudgets);
 
     const raised = { ...settings, sites: [{ ...settings.sites[0], limitMin: 70 }] };
     expect(buildHistoryViews(history, raised, state, now).streaks).toEqual({ current: 6, best: 6 });
@@ -37,7 +40,9 @@ describe('buildHistoryViews', () => {
       [`2026-11-${String(i + 9).padStart(2, '0')}`, record(minutes)],
     ));
     const view = buildHistoryViews(history, { ...settings, combinedBudgetMin: 60 }, today, now);
-    expect(view.heatmap.map(({ bucket }) => bucket)).toEqual([0, 1, 2, 3, 4, 5, 0]);
+    expect(view.days.map(({ bucket }) => bucket)).toEqual([0, 1, 2, 3, 4, 5, 0]);
+    expect(view.days[4].exceededBudgets).toEqual([]);
+    expect(view.days[5].exceededBudgets).toEqual(['Combined budget', 'example.com']);
     expect(view.streaks).toEqual({ current: 1, best: 5 });
   });
 
@@ -48,7 +53,7 @@ describe('buildHistoryViews', () => {
     };
     const state = { ...today, perSiteSeconds: { 'example.com': 91.25 } };
     const view = buildHistoryViews(history, settings, state, now);
-    expect(view.heatmap[1].minutes).toBe(211.25 / 60);
+    expect(view.days[1].minutes).toBe(211.25 / 60);
     expect(view.totals).toEqual({
       trackedSec: 391.25, overrideCount: 1, firstDay: '2026-11-14', lastDay: '2026-11-15', dayCount: 2,
     });
@@ -61,7 +66,7 @@ describe('buildHistoryViews', () => {
     expect(view.totals).toEqual({
       trackedSec: 480, overrideCount: 0, firstDay: dayKey(old), lastDay: '2026-11-15', dayCount: 370,
     });
-    expect(view.heatmap).toHaveLength(370);
+    expect(view.days).toHaveLength(370);
     expect(view.streaks).toEqual({ current: 370, best: 370 });
     expect(view.daysSinceInstall).toBe(730);
   });
@@ -69,14 +74,14 @@ describe('buildHistoryViews', () => {
   it('starts at the first day with a record and leaves an unused install empty', () => {
     const install = new Date(2026, 10, 10, 5).getTime();
     const empty = buildHistoryViews({}, settings, today, now, install);
-    expect(empty.heatmap).toEqual([]);
+    expect(empty.days).toEqual([]);
     expect(empty.streaks).toEqual({ current: 0, best: 0 });
     expect(empty.totals).toMatchObject({ trackedSec: 0, firstDay: null, dayCount: 0 });
     expect(empty.daysSinceInstall).toBe(5);
 
     const state = { ...today, perSiteSeconds: { 'example.com': 60 } };
     const first = buildHistoryViews({}, settings, state, now, install);
-    expect(first.heatmap).toEqual([{ key: '2026-11-15', minutes: 1, bucket: 1 }]);
+    expect(first.days).toEqual([{ key: '2026-11-15', minutes: 1, bucket: 1, exceededBudgets: [] }]);
     expect(first.streaks).toEqual({ current: 1, best: 1 });
   });
 });

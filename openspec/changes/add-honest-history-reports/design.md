@@ -14,7 +14,7 @@ storage lock.
 **Goals:**
 - All three views derived at render time from retained history — no new
   mutable counters, so no races and nothing to migrate.
-- Streak/heatmap framing stays factual (record of what happened, not a
+- Streak and chart framing stays factual (record of what happened, not a
   virtue score).
 - Year-long retention at negligible storage cost.
 
@@ -22,7 +22,7 @@ storage lock.
 - No streak persistence, streak rewards, or streak loss mechanics of any
   kind (spec forbids behavioral effects).
 - No new storage schema version — history/day records keep their shape.
-- No per-site heatmaps (combined minutes only for v1).
+- Daily bars represent combined minutes.
 
 ## Decisions
 
@@ -33,7 +33,7 @@ record inside that span. A year of daily records fits within the existing
 storage quota.
 
 ### D2: Derive everything at render; store no new aggregates
-Heatmap cells, streak lengths, and totals are pure projections
+Daily usage, budget status, streak lengths, and totals are pure projections
 (`buildHistoryViews(history, settings, state, now, installTs)` in
 shared/stats.ts). Alternative — incrementing lifetime counters inside
 `loadState` — rejected: multi-context concurrent rolls would double-count,
@@ -55,21 +55,23 @@ budget, counted from the first recorded usage day; days with no record
 inside that span count as inside-budget (zero usage). Judged against
 current settings, so raising/lowering a budget retroactively re-scores
 history — accepted (honesty about method beats fake snapshots), and the
-stats row states "vs current budgets" in its tooltip.
+stats row states "Compared with current budgets". Recent days and the chart
+use the same limit comparison and can name the budgets a day exceeded.
 
-### D5: Heatmap is a CSS grid, intensity buckets relative to the combined budget
-Zero has an empty-colored cell. The five positive bands are ≤25%, ≤50%,
-≤75%, ≤100%, and >100% of the combined budget. Native
-`title` attributes carry the date and measured minutes (plus
-`aria-label`); no chart library (zero-deps policy). Weeks as columns,
-7 rows; horizontally scrollable when full.
+### D5: Weekly bars with the budget as a reference
+Show the latest seven usage days, with earlier weeks available through
+arrow buttons. Daily averages include quiet days in the displayed span.
+Bar height represents combined minutes. The reference line marks the
+combined budget, while color and text indicate when a per-site limit or
+the combined budget was exceeded. The calendar implementation is kept as
+a disabled display mode using the same daily data.
 
 ## Risks / Trade-offs
 
 - [Retroactively re-scored streaks after budget edits] → Accepted and
   surfaced in UI wording ("current budgets"); snapshotting budgets per day
   would require history-shape growth for marginal honesty gain.
-- [370-day grid is wide] → Horizontal scroll, with weekday labels held in view.
+- [Older history spans many weeks] → Week navigation limits the number of bars shown at once.
 - [Zero-usage days before a user's real start inflate early streaks] →
   Bounded by the first recorded day (D4). An unused profile starts with a
   streak of zero.

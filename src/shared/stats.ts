@@ -24,7 +24,7 @@ export interface StatsView {
     overrides: OverrideEntry[];
   };
   /** Recent closed days, newest first. */
-  history: Array<{ key: string; record: DayRecord }>;
+  history: Array<{ key: string; record: DayRecord; exceededBudgets: string[] }>;
 }
 
 const fmtClock = (ts: number): string =>
@@ -43,6 +43,14 @@ export function formatDuration(sec: number): string {
   if (h > 0) return `${h}h ${m}m`;
   if (m > 0) return `${m}m`;
   return `${s}s`;
+}
+
+function exceededBudgets(settings: Settings, record: DayRecord): string[] {
+  const exceeded = record.totalSec > settings.combinedBudgetMin * 60 ? ['Combined budget'] : [];
+  for (const { domain, limitMin } of settings.sites) {
+    if (limitMin != null && (record.perSite[domain] ?? 0) > limitMin * 60) exceeded.push(domain);
+  }
+  return exceeded;
 }
 
 /**
@@ -95,7 +103,7 @@ export function buildStatsView(
   const historyDays = Object.entries(history)
     .filter(([key]) => key !== todayKey)
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([key, record]) => ({ key, record }));
+    .map(([key, record]) => ({ key, record, exceededBudgets: exceededBudgets(settings, record) }));
 
   const todayOverrides: OverrideEntry[] = [...(history[todayKey]?.overrides ?? [])];
 
@@ -113,8 +121,15 @@ export function buildStatsView(
   };
 }
 
+export interface UsageReportDay {
+  key: string;
+  minutes: number;
+  bucket: number;
+  exceededBudgets: string[];
+}
+
 export interface HistoryViews {
-  heatmap: Array<{ key: string; minutes: number; bucket: number }>;
+  days: UsageReportDay[];
   streaks: { current: number; best: number };
   totals: {
     trackedSec: number;
@@ -160,10 +175,7 @@ export function buildHistoryViews(
 
   const dayCount = records.size > 0 ? today - first + 1 : 0;
   const combinedLimitSec = settings.combinedBudgetMin * 60;
-  const siteLimits = settings.sites.flatMap(({ domain, limitMin }) =>
-    limitMin == null ? [] : [{ domain, limitSec: limitMin * 60 }],
-  );
-  const heatmap: HistoryViews['heatmap'] = [];
+  const days: UsageReportDay[] = [];
   let trackedSec = 0;
   let overrideCount = 0;
   let current = 0;
@@ -174,22 +186,20 @@ export function buildHistoryViews(
     const record = records.get(index);
     const seconds = record?.totalSec ?? 0;
     const bucket = seconds > 0 ? Math.min(5, Math.ceil(4 * seconds / combinedLimitSec)) : 0;
-    heatmap.push({ key: keyAtDayIndex(index), minutes: seconds / 60, bucket });
+    const overages = record ? exceededBudgets(settings, record) : [];
+    days.push({ key: keyAtDayIndex(index), minutes: seconds / 60, bucket, exceededBudgets: overages });
 
     trackedSec += seconds;
     overrideCount += record?.overrides.length ?? 0;
-    const insideBudget = seconds <= combinedLimitSec && siteLimits.every(({ domain, limitSec }) =>
-      (record?.perSite[domain] ?? 0) <= limitSec,
-    );
-    current = insideBudget ? current + 1 : 0;
+    current = overages.length === 0 ? current + 1 : 0;
     best = Math.max(best, current);
   }
 
   const installDay = installTs === undefined ? NaN : dayIndex(dayKey(usageDayStart(installTs, settings.resetHour)));
   return {
-    heatmap,
+    days,
     streaks: { current, best },
-    totals: { trackedSec, overrideCount, firstDay: heatmap[0]?.key ?? null, lastDay: todayKey, dayCount },
+    totals: { trackedSec, overrideCount, firstDay: days[0]?.key ?? null, lastDay: todayKey, dayCount },
     daysSinceInstall: Number.isFinite(installDay) ? Math.max(0, today - installDay) : null,
   };
 }

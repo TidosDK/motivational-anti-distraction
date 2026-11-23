@@ -15,6 +15,11 @@
 - [x] 3.1 Add `tests-e2e/verify-reports.mjs` (same harness as `verify-popup.mjs`): seed ~400 days of history (mixed over/under budget, gaps) → assert pruning kept 370, heatmap cell count and buckets, current/best streak values, totals window labels; verify the script passes
 - [x] 3.2 Update README Features (heatmap, streaks, lifetime totals, year of history) and add the manual checks (heatmap hover values, streak framing — no penalty behaviors) to `docs/testing.md`; record results
 
+## 4. Validation feedback
+
+- [x] 4.1 Replace the default calendar with a navigable seven-day bar chart and keep the calendar behind a disabled feature flag. Verify quiet days, exact day details, and the previous and next week controls.
+- [x] 4.2 Add within-budget and over-budget labels to Recent days. Verify that the chart, rows, and streaks agree on individual and combined limits and update after a budget edit.
+
 ## Workflow follow-up
 
 - Work-in-progress commits carry no version bump; `npm run build` after each task group keeps `dist/` current.

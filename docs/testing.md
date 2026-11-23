@@ -21,7 +21,7 @@ node tests-e2e/verify-10.3.mjs  # ~4.5 min: two windows, real-time accrual
 node tests-e2e/verify-popup.mjs # remaining-time popup render + live update
 node tests-e2e/verify-badge.mjs # toolbar badge, icon paths, budget changes, and rollover
 node tests-e2e/verify-portability.mjs # real downloads and restore into a fresh profile
-node tests-e2e/verify-reports.mjs # retention, calendar, streaks, and totals
+node tests-e2e/verify-reports.mjs # retention, weekly chart, budget labels, streaks, and totals
 ```
 
 The e2e verifications drive a real Chromium with `dist/` loaded as an
@@ -49,7 +49,7 @@ engine family.
 | verify-popup | remaining-time popup from seeded fixtures: per-site remaining, exhausted + no-limit rows, combined remaining, reset label, options link; live re-render on usage accrual and settings edits; empty state | PASS (2026-11-09) |
 | verify-badge | minute suffixes, hidden badges on tabs without an individual limit, site exhaustion, blocking page, and rollover | PASS (v0.4.2) |
 | verify-portability | offline JSON and CSV downloads, atomic fresh-profile restore, cancelled and invalid files, restored popup and Stats history, blocking, active pass alarm, and deck position | PASS (v0.5.0) |
-| verify-reports | 370 retained records, quiet gaps and exact hover values, install age after pruning, totals window, and live streak re-scoring | PASS (v0.6.0) |
+| verify-reports | 370 retained records, weekly navigation and day details, per-day budget labels, the totals window, and live streak re-scoring | PASS (v0.6.1) |
 
 ## Manual checklist (Brave)
 
@@ -140,10 +140,10 @@ A site list you actually use makes the limits feel real; `example.com` /
      a fresh profile, import the JSON and confirm the popup matches the
      original. Try importing an invalid JSON file and check that the
      restored settings and usage stay in place.
- 17. **History reports** — open Stats with a year of seeded usage. Scroll
-     the calendar across months and hover a quiet and a busy day for the
-     date and minutes. Check the totals date range and the install age.
-     Edit a budget and check that the streaks update against the new limit.
+ 17. **History reports** — open Stats with a year of seeded usage. Navigate
+     to earlier weeks and select a quiet day and an over-budget day. Check
+     the dates, minutes, and limits against Recent days. Edit a budget and
+     check that the chart, daily labels, and streaks use the new limit.
 
 Fill this table after running the steps above:
 
@@ -167,7 +167,7 @@ Fill this table after running the steps above:
 | 14 | Away vs. hands-off watching | — | v0.3.1 accepted with the manual Brave check waived by the user on 2026-11-23 |
 | 15 | Toolbar badge | ✅ | Brave 157, temporary profile. `17m` and `99m` fit in v0.4.2. Navigating away from an exhausted site restored the plain orange icon. v0.4.1 checks covered `3h`, `9h+`, and the blocking page. User confirmed v0.4.2 on 2026-11-23. |
 | 16 | Data portability | ✅ | Brave 157 downloaded all three files and restored matching popup totals in a fresh profile. Cancelled and invalid imports preserved storage. LibreOffice Calc opened both CSVs with matching headers and values. On 2026-11-23 the user confirmed that Chrome restored the blocked sites, daily rules, and history under Stats. |
-| 17 | History reports | ✅ | Chromium and Brave 157, temporary profiles. Seeded roughly 400 records, verified retention and quiet cells, checked the calendar in light and dark layouts, and verified that streaks re-score without writing to usage or history. |
+| 17 | History reports | ✅ | The user confirmed the v0.6.0 calendar was visible. v0.6.1 browser tests verified weekly navigation, date inspection, and budget labels in Chromium and Brave. Brave screenshots covered the light desktop and narrow dark layouts. A temporary Chromium build also verified that enabling the calendar flag restores the calendar view. |
 
 ### Findings & triage — 2026-11-17 (user: "watching YouTube, the count is definitely off — way less")
 

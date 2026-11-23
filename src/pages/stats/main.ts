@@ -1,9 +1,13 @@
 import '../../shared/style.css';
+import { dayIndex, keyAtDayIndex } from '../../shared/dayMath';
 import { chromeKV, loadHistory, loadInstallMeta, loadSettings, loadState, withStorageLock } from '../../shared/storage';
-import { buildHistoryViews, buildStatsView, formatDuration, type HistoryViews } from '../../shared/stats';
+import { buildHistoryViews, buildStatsView, formatDuration, type HistoryViews, type UsageReportDay } from '../../shared/stats';
 import { HISTORY_KEY, META_KEY, SETTINGS_KEY, STATE_KEY, type InstallMeta } from '../../shared/types';
 
 const stats = document.querySelector<HTMLElement>('#stats')!;
+const SHOW_USAGE_CALENDAR: boolean = false;
+let selectedWeek: number | undefined;
+let selectedDay: string | undefined;
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -29,15 +33,36 @@ const cellDate = new Intl.DateTimeFormat(undefined, {
 });
 const cellMinutes = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' });
+const weekDate = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const weekdayName = new Intl.DateTimeFormat(undefined, { weekday: 'short', timeZone: 'UTC' });
 
-function renderHeatmap(cells: HistoryViews['heatmap']): HTMLElement {
+function dateForDay(key: string): Date {
+  return new Date(`${key}T00:00:00Z`);
+}
+
+function minuteLabel(minutes: number): string {
+  return `${minutes > 0 && minutes < 0.01 ? '<0.01' : cellMinutes.format(minutes)} min`;
+}
+
+function budgetLabel(overages: string[]): string {
+  return overages.length ? 'Over budget' : 'Within budget';
+}
+
+function budgetStatus(overages: string[]): HTMLElement {
+  const status = el('span', 'budget-status', budgetLabel(overages));
+  status.dataset.budget = overages.length ? 'over' : 'within';
+  status.title = overages.length ? `Exceeded ${overages.join(', ')}` : 'Compared with current budgets';
+  return status;
+}
+
+function renderHeatmap(cells: UsageReportDay[]): HTMLElement {
   const scroll = el('div', 'heatmap-scroll');
   scroll.tabIndex = 0;
   scroll.setAttribute('role', 'region');
   scroll.setAttribute('aria-label', 'Daily usage heatmap');
 
   const grid = el('div', 'heatmap-grid');
-  const firstDate = new Date(`${cells[0].key}T00:00:00Z`);
+  const firstDate = dateForDay(cells[0].key);
   const leadingDays = (firstDate.getUTCDay() + 6) % 7;
   grid.style.setProperty('--weeks', String(Math.ceil((leadingDays + cells.length) / 7)));
 
@@ -54,7 +79,7 @@ function renderHeatmap(cells: HistoryViews['heatmap']): HTMLElement {
   for (const [offset, { key, minutes, bucket }] of cells.entries()) {
     const dayInGrid = leadingDays + offset;
     const column = Math.floor(dayInGrid / 7) + 2;
-    const date = new Date(`${key}T00:00:00Z`);
+    const date = dateForDay(key);
 
     if ((date.getUTCDate() === 1 || (offset === 0 && date.getUTCDate() <= 24)) && column > lastMonthColumn + 2) {
       const month = el('span', 'heatmap-month', monthName.format(date));
@@ -69,8 +94,7 @@ function renderHeatmap(cells: HistoryViews['heatmap']): HTMLElement {
     cell.dataset.bucket = String(bucket);
     cell.style.gridColumn = String(column);
     cell.style.gridRow = String(dayInGrid % 7 + 2);
-    const time = minutes > 0 && minutes < 0.01 ? '<0.01' : cellMinutes.format(minutes);
-    cell.title = `${cellDate.format(date)} · ${time} min`;
+    cell.title = `${cellDate.format(date)} · ${minuteLabel(minutes)}`;
     cell.setAttribute('role', 'img');
     cell.setAttribute('aria-label', cell.title);
     grid.append(cell);
@@ -80,12 +104,117 @@ function renderHeatmap(cells: HistoryViews['heatmap']): HTMLElement {
   return scroll;
 }
 
-function renderHistoryReports(report: HistoryViews, meta: InstallMeta | undefined): HTMLElement {
-  const section = el('section', 'card history-reports');
-  section.append(el('h2', undefined, 'Usage calendar'));
+function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement {
+  const section = el('div', 'weekly-usage');
+  const first = dayIndex(report.days[0].key);
+  const latestWeek = dayIndex(report.totals.lastDay) - 6;
+  const earliestWeek = latestWeek - Math.floor((report.days.length - 1) / 7) * 7;
+  let week = Math.max(earliestWeek, Math.min(latestWeek, selectedWeek ?? latestWeek));
 
-  if (report.heatmap.length) {
-    section.append(renderHeatmap(report.heatmap));
+  const navigation = el('div', 'week-navigation');
+  const previous = el('button', 'week-arrow', '‹');
+  const next = el('button', 'week-arrow', '›');
+  previous.type = next.type = 'button';
+  previous.setAttribute('aria-label', 'Previous week');
+  next.setAttribute('aria-label', 'Next week');
+  const dateRange = el('p', 'week-range');
+  dateRange.setAttribute('aria-live', 'polite');
+  navigation.append(previous, dateRange, next);
+
+  const summary = el('div', 'week-summary');
+  const average = el('p', 'week-average');
+  summary.append(average, el('p', 'week-budget muted', `Combined budget ${formatDuration(budgetMin * 60)}`));
+
+  const plot = el('div', 'week-plot');
+  const grid = el('div', 'week-days');
+  const axis = el('div', 'week-axis');
+  axis.setAttribute('aria-hidden', 'true');
+  const budgetLine = el('div', 'week-budget-line');
+  axis.append(budgetLine);
+  plot.append(grid, axis);
+  const detail = el('div', 'week-detail');
+  detail.setAttribute('aria-live', 'polite');
+  section.append(navigation, summary, plot, detail);
+
+  function drawWeek(): void {
+    previous.disabled = week === earliestWeek;
+    next.disabled = week === latestWeek;
+    dateRange.textContent = weekDate.formatRange(dateForDay(keyAtDayIndex(week)), dateForDay(keyAtDayIndex(week + 6)));
+
+    const days = report.days.slice(Math.max(0, week - first), Math.max(0, week + 7 - first));
+    const scale = Math.max(1, budgetMin, ...days.map(({ minutes }) => minutes)) * 1.12;
+    budgetLine.style.bottom = `${budgetMin / scale * 100}%`;
+    const mean = days.reduce((sum, day) => sum + day.minutes, 0) / days.length;
+    average.textContent = `${formatDuration(mean * 60)} daily average`;
+    grid.replaceChildren();
+
+    const buttons = new Map<string, HTMLButtonElement>();
+    function select(day: UsageReportDay): void {
+      for (const [key, button] of buttons) button.setAttribute('aria-pressed', String(key === day.key));
+      detail.replaceChildren(
+        el('span', 'week-detail-date', cellDate.format(dateForDay(day.key))),
+        el('strong', undefined, minuteLabel(day.minutes)),
+        budgetStatus(day.exceededBudgets),
+      );
+      if (day.exceededBudgets.length) {
+        detail.append(el('p', 'muted week-overages', `Exceeded ${day.exceededBudgets.join(', ')}`));
+      }
+    }
+
+    for (let index = week; index < week + 7; index++) {
+      const key = keyAtDayIndex(index);
+      const date = dateForDay(key);
+      const day = report.days[index - first];
+      const button = el('button', 'week-day');
+      button.type = 'button';
+      button.dataset.day = key;
+      const slot = el('span', 'week-bar-slot');
+      button.append(slot, el('span', 'week-day-label', weekdayName.format(date)));
+      if (day) {
+        const fill = el('span', 'week-bar-fill');
+        fill.style.height = `${day.minutes / scale * 100}%`;
+        fill.dataset.budget = day.exceededBudgets.length ? 'over' : 'within';
+        slot.append(fill);
+        button.title = `${cellDate.format(date)} · ${minuteLabel(day.minutes)} · ${budgetLabel(day.exceededBudgets)}`;
+        button.setAttribute('aria-label', button.title);
+        button.addEventListener('click', () => {
+          selectedDay = key;
+          select(day);
+        });
+        buttons.set(key, button);
+      } else {
+        button.disabled = true;
+        button.setAttribute('aria-label', `${cellDate.format(date)} · No usage day in this report`);
+      }
+      grid.append(button);
+    }
+    select(days.find(({ key }) => key === selectedDay) ?? days[days.length - 1]);
+  }
+
+  previous.addEventListener('click', () => {
+    week = Math.max(earliestWeek, week - 7);
+    selectedWeek = week;
+    selectedDay = undefined;
+    drawWeek();
+  });
+  next.addEventListener('click', () => {
+    week = Math.min(latestWeek, week + 7);
+    selectedWeek = week === latestWeek ? undefined : week;
+    selectedDay = undefined;
+    drawWeek();
+  });
+  drawWeek();
+  return section;
+}
+
+function renderHistoryReports(report: HistoryViews, meta: InstallMeta | undefined, budgetMin: number): HTMLElement {
+  const section = el('section', 'card history-reports');
+  section.append(el('h2', undefined, SHOW_USAGE_CALENDAR ? 'Usage calendar' : 'Daily usage'));
+
+  if (!report.days.length) {
+    section.append(el('p', 'muted', 'No usage days recorded yet.'));
+  } else if (SHOW_USAGE_CALENDAR) {
+    section.append(renderHeatmap(report.days));
     const legend = el('div', 'heatmap-legend muted');
     legend.append('Less');
     for (let bucket = 0; bucket <= 5; bucket++) {
@@ -97,7 +226,7 @@ function renderHistoryReports(report: HistoryViews, meta: InstallMeta | undefine
     legend.append('More');
     section.append(legend);
   } else {
-    section.append(el('p', 'muted', 'No usage days recorded yet.'));
+    section.append(renderWeeklyUsage(report, budgetMin));
   }
 
   const summary = el('div', 'history-summary');
@@ -198,7 +327,7 @@ function render(): void {
       today.appendChild(list);
     }
     stats.appendChild(today);
-    const reportSection = renderHistoryReports(reports, meta);
+    const reportSection = renderHistoryReports(reports, meta, settings.combinedBudgetMin);
     stats.append(reportSection);
     const calendar = reportSection.querySelector<HTMLElement>('.heatmap-scroll');
     if (calendar) {
@@ -221,9 +350,12 @@ function render(): void {
         .sort((a, b) => b[1] - a[1])
         .map(([d, sec]) => `${d} ${formatDuration(sec)}`);
       row.appendChild(el('div', 'muted history-detail', parts.join(' · ') || 'no usage'));
+      const status = el('div', 'history-status');
+      status.append(budgetStatus(day.exceededBudgets));
       if (day.record.overrides.length > 0) {
-        row.appendChild(el('div', 'history-overrides', `${day.record.overrides.length} pass(es) used`));
+        status.append(el('span', 'history-overrides', `${day.record.overrides.length} pass(es) used`));
       }
+      row.append(status);
       hist.appendChild(row);
     }
     stats.appendChild(hist);

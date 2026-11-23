@@ -2,26 +2,32 @@
 
 ## ADDED Requirements
 
-### Requirement: Calendar heatmap of usage days
-The stats view SHALL display a calendar heatmap with one cell per usage day
-over the retained history, colored by intensity of that day's combined
-unproductive minutes (including zero-minute days, which remain visible as
-empty cells). Each cell SHALL expose its exact date and minutes on hover or
-equivalent inspection. The heatmap is a factual record: it MUST NOT encode
-punishment, shame framing, or any behavioral penalty beyond the data.
+### Requirement: Weekly usage chart
+The stats view SHALL show daily combined usage as bars with a combined-budget
+reference line. It SHALL open on the latest seven usage days and allow
+navigation to older weeks in the retained period. Selecting a day SHALL show
+its date, minutes, and budget status. The chart SHALL include zero-usage days
+inside the retained period and SHALL be informational only.
 
-#### Scenario: Pattern is visible at a glance
-- **WHEN** the user opens the stats page after two months of recorded usage
-- **THEN** a calendar grid shows every usage day, with busier days visibly
-  darker
+#### Scenario: Compare a week of usage
+- **WHEN** the user opens Stats with at least seven days in the report
+- **THEN** the latest seven usage days appear as bars with the combined budget marked
 
 #### Scenario: Exact value on demand
-- **WHEN** the user inspects a single heatmap cell
-- **THEN** the date and that day's combined minutes are shown exactly
+- **WHEN** the user selects a day in the chart
+- **THEN** the chart shows the date, combined minutes, and any exceeded budgets
 
-#### Scenario: Quiet days are still days
-- **WHEN** a recorded usage day has zero unproductive minutes
-- **THEN** its cell is present and visibly empty rather than missing
+#### Scenario: Inspect older days
+- **WHEN** retained usage predates the displayed week and the user goes back a week
+- **THEN** the previous seven-day period is shown, including quiet days
+
+### Requirement: Calendar mode is disabled by default
+The extension SHALL retain the calendar heatmap implementation behind a
+feature flag with a disabled default.
+
+#### Scenario: Default stats view
+- **WHEN** the user opens Stats with the default feature configuration
+- **THEN** the weekly chart is shown and the calendar is hidden
 
 ### Requirement: Under-budget streak record
 The stats view SHALL show the current and the best streak of consecutive
@@ -47,6 +53,15 @@ the ceremony, in the present or the future.
 - **THEN** budgets, passes, and the ceremony behave exactly as on any other
   day
 
+### Requirement: Recent days shows daily budget status
+Each row in Recent days SHALL label the day as within budget or over budget
+using the same current combined and per-site limits as the streak calculation.
+The label SHALL be readable without relying on color.
+
+#### Scenario: An individual site exceeded its limit
+- **WHEN** a recorded day exceeded a site limit while staying within the combined budget
+- **THEN** its Recent days row is marked over budget and names the exceeded site on inspection
+
 ### Requirement: Lifetime totals
 The stats view SHALL show total tracked time and total override ceremonies
 over the retained history window, plus the number of usage days since the
@@ -69,15 +84,14 @@ as an estimate.
 
 ### Requirement: Retention
 The system SHALL retain at least 370 usage days of history so a full year is
-always visible in the stats view and heatmap. Retaining more is permitted;
+available in the stats view and weekly chart. Retaining more is permitted;
 older days MAY be pruned automatically. The minimum remains 30 usage days
 where storage pressure requires it, in which case the lifetime totals
 requirement's window labeling applies.
 
 #### Scenario: A year of history visible
 - **WHEN** the user opens the stats page 300 days into using the extension
-- **THEN** the heatmap shows every recorded usage day, including those from
-  nearly a year ago
+- **THEN** the daily rows and weekly chart can show records from nearly a year ago
 
 #### Scenario: History retained
 - **WHEN** 30 usage days have passed since a day with recorded usage

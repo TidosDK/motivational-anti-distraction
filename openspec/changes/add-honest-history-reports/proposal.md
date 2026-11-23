@@ -4,7 +4,7 @@
 
 The stats page shows a flat list of days, which answers "what did I do
 Tuesday?" but not the two questions that actually create honesty pressure:
-"what is my pattern?" (a calendar heatmap answers it instantly) and "do I
+"what is my pattern?" (a weekly usage chart makes days easy to compare) and "do I
 ever win?" (an under-budget streak). Meanwhile all totals are windowed to
 the recent 31 days, so there is no sense of the whole arc. All three
 features derive from data already recorded — the work is presentation and
@@ -12,12 +12,14 @@ retention, not new tracking.
 
 ## What Changes
 
-- **Calendar heatmap** on the stats page: one cell per usage day over the
-  retained history, visual intensity by unproductive minutes, exact value
-  on hover.
+- **Weekly usage chart** on the stats page with daily bars, a combined
+  budget line, and day selection. The calendar implementation remains
+  available behind a disabled feature flag.
 - **Under-budget streaks**: current and best run of consecutive usage days
   that stayed inside every budget — a record, not a score: losing a streak
   changes nothing about budgets, passes, or ceremony.
+- **Recent days budget status** shows which dates were within or over
+  budget using the same comparison as the streaks.
 - **Lifetime totals**: total tracked time and total overrides/ceremonies,
   computed over the (now year-long) retained window plus a
   "using since install" day count — honest measurable numbers only, no
@@ -35,7 +37,7 @@ capability already owns "presents that history honestly". -->
 
 ### Modified Capabilities
 
-- `usage-tracking`: adds requirements for the calendar heatmap, the
+- `usage-tracking`: adds requirements for the weekly chart, per-day budget status, the
   under-budget streak, and lifetime totals; modifies Retention to retain at
   least 370 usage days (the 30-day minimum becomes a floor beneath it).
 
@@ -43,10 +45,10 @@ capability already owns "presents that history honestly". -->
 
 - `src/shared/storage.ts` — `pruneHistory` keep-days raised (single
   constant).
-- `src/shared/stats.ts` — pure projections: heatmap cells, streak
+- `src/shared/stats.ts` — pure projections: daily usage, budget status, streak
   computation, lifetime totals; unit-tested.
-- `src/pages/stats/main.ts` + `src/shared/style.css` — grid rendering,
-  hover values, streak and totals rows.
+- `src/pages/stats/main.ts` + `src/shared/style.css` — weekly chart, day
+  inspection, budget labels, streaks, and totals.
 - README feature list + `docs/testing.md`; one e2e verification script.
 - No manifest, permission, or schema-version change (history shape is
   unchanged; old installs simply accumulate longer history after update).
