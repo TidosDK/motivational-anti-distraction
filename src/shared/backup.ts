@@ -1,6 +1,6 @@
 import { normalizeDomain } from './domains';
-import { normalizeSettings, normalizeState } from './storage';
-import { SCHEMA_VERSION, type DayState, type DeckState, type History, type Settings } from './types';
+import { normalizeSettings, normalizeState, normalizeUserQuotes } from './storage';
+import { SCHEMA_VERSION, type DayState, type DeckState, type History, type Settings, type UserQuotes } from './types';
 
 const BACKUP_FORMAT = 'motivational-anti-distraction-backup';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -10,6 +10,7 @@ interface BackupData {
   state: DayState;
   history: History;
   deck: DeckState;
+  userQuotes: UserQuotes;
 }
 
 interface Backup {
@@ -26,6 +27,7 @@ export function buildBackup(
   state: DayState,
   history: History,
   deck: DeckState | undefined,
+  userQuotes: UserQuotes,
   nowMs: number,
 ): Backup {
   return {
@@ -37,6 +39,7 @@ export function buildBackup(
       state: normalizeState(state),
       history,
       deck: deck ?? { cycleOrder: [], position: 0 },
+      userQuotes: normalizeUserQuotes(userQuotes),
     },
   };
 }
@@ -162,6 +165,15 @@ function readDeck(value: unknown): DeckState {
   return { cycleOrder: value.cycleOrder, position: value.position };
 }
 
+function readUserQuotes(value: unknown): UserQuotes {
+  if (value === undefined) return normalizeUserQuotes(undefined);
+  if (!isRecord(value) || !Array.isArray(value.quotes) || typeof value.ownOnly !== 'boolean' ||
+      !value.quotes.every((quote) => typeof quote === 'string')) {
+    throw new Error('userQuotes must contain a list of quote strings and a true or false ownOnly setting.');
+  }
+  return normalizeUserQuotes(value);
+}
+
 export function parseBackup(text: string, nowMs = Date.now()): ParseResult {
   let envelope: unknown;
   try {
@@ -195,7 +207,8 @@ export function parseBackup(text: string, nowMs = Date.now()): ParseResult {
   const state = validate(() => readState(data.state, nowMs));
   const history = validate(() => readHistory(data.history));
   const deck = validate(() => readDeck(data.deck));
-  if (settings && state && history && deck) return { ok: true, data: { settings, state, history, deck } };
+  const userQuotes = validate(() => readUserQuotes(data.userQuotes));
+  if (settings && state && history && deck && userQuotes) return { ok: true, data: { settings, state, history, deck, userQuotes } };
   return { ok: false, errors };
 }
 

@@ -4,22 +4,26 @@ import {
   accrueForeground,
   emptyRecord,
   ensureInstallMeta,
+  loadDeck,
   loadHistory,
   loadInstallMeta,
   loadSessions,
   loadSettings,
   loadState,
+  loadUserQuotes,
   memoryKV,
   pruneHistory,
   recordOverride,
   saveSessions,
   saveState,
+  saveUserQuotes,
 } from './storage';
 import {
   DEFAULT_SETTINGS,
   HISTORY_KEY,
   META_KEY,
   SESSION_KEY,
+  USER_QUOTES_KEY,
   type ActiveSession,
   type DayState,
   type History,
@@ -36,6 +40,22 @@ describe('loadSettings', () => {
   it('returns defaults on a fresh install', async () => {
     const kv = memoryKV();
     expect(await loadSettings(kv)).toEqual(DEFAULT_SETTINGS);
+  });
+});
+
+describe('user quotes storage', () => {
+  it('loads defaults and tolerates malformed stored settings', async () => {
+    expect(await loadUserQuotes(memoryKV())).toEqual({ quotes: [], ownOnly: false });
+    const kv = memoryKV({ [USER_QUOTES_KEY]: { quotes: ['   ', null, 'Keep going.', ' Keep going. ', '💛!', 12], ownOnly: 'true' } });
+    expect(await loadUserQuotes(kv)).toEqual({ quotes: ['Keep going.'], ownOnly: false });
+  });
+
+  it('caps quotes without splitting Unicode characters and resets the saved cycle on edit', async () => {
+    const long = '𝓐'.repeat(510);
+    const kv = memoryKV({ deck: { cycleOrder: [0, 1], position: 1 } });
+    await saveUserQuotes(kv, { quotes: [` ${long} `, 'Do it now.'], ownOnly: true });
+    expect(await loadUserQuotes(kv)).toEqual({ quotes: ['𝓐'.repeat(500), 'Do it now.'], ownOnly: true });
+    expect(await loadDeck(kv)).toEqual({ cycleOrder: [], position: 0 });
   });
 });
 

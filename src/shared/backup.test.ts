@@ -23,21 +23,24 @@ const history: History = {
   },
 };
 const deck = { cycleOrder: [2, 0, 1], position: 2 };
-const backup = buildBackup(settings, state, history, deck, now);
+const userQuotes = { quotes: ['Stay with your purpose.', 'Choose a small step.', 'Keep going.'], ownOnly: true };
+const backup = buildBackup(settings, state, history, deck, userQuotes, now);
 const parse = (input: unknown) => parseBackup(JSON.stringify(input), now);
 
 describe('backup envelope', () => {
-  it('round-trips all four sections including fractional usage and an active pass', () => {
+  it('round-trips usage, an active pass, and the personal deck and its position', () => {
     expect(backup).toEqual({
       format: 'motivational-anti-distraction-backup', version: SCHEMA_VERSION,
-      exportedAt: new Date(now).toISOString(), data: { settings, state, history, deck },
+      exportedAt: new Date(now).toISOString(), data: { settings, state, history, deck, userQuotes },
     });
     expect(parse(backup)).toEqual({ ok: true, data: backup.data });
   });
 
   it('represents an undrawn deck and preserves an exhausted cycle', () => {
-    const fresh = buildBackup(settings, state, history, undefined, now);
-    expect(parse(fresh)).toEqual({ ok: true, data: { ...fresh.data, deck: { cycleOrder: [], position: 0 } } });
+    const fresh = buildBackup(settings, state, history, undefined, { quotes: [], ownOnly: false }, now);
+    expect(fresh.data.deck).toEqual({ cycleOrder: [], position: 0 });
+    expect(fresh.data.userQuotes).toEqual({ quotes: [], ownOnly: false });
+    expect(parse(fresh)).toEqual({ ok: true, data: fresh.data });
     expect(parse({ ...backup, data: { ...backup.data, deck: { ...deck, position: 3 } } }).ok).toBe(true);
   });
 
@@ -61,9 +64,10 @@ describe('backup envelope', () => {
     expect(parse({ ...backup, data: {
       settings: { ...settings, resetHour: 24 }, state: { ...state, perSiteSeconds: { 'example.com': -1 } },
       history: { '2026-02-30': history['2026-11-14'] }, deck: { ...deck, position: 20 },
+      userQuotes: { quotes: [42], ownOnly: false },
     } })).toMatchObject({ ok: false, errors: [
       expect.stringMatching(/settings\.resetHour/), expect.stringMatching(/state\.perSiteSeconds/),
-      expect.stringMatching(/history/), expect.stringMatching(/deck\.position/),
+      expect.stringMatching(/history/), expect.stringMatching(/deck\.position/), expect.stringMatching(/userQuotes/),
     ] });
   });
 
@@ -78,7 +82,7 @@ describe('backup envelope', () => {
     };
     expect(parse(input)).toEqual({ ok: true, data: {
       settings: { ...settings, passSessionMin: DEFAULT_SETTINGS.passSessionMin },
-      state: { ...state, passesUntil: {} }, history, deck,
+      state: { ...state, passesUntil: {} }, history, deck, userQuotes: { quotes: [], ownOnly: false },
     } });
   });
 });

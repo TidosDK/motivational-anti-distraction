@@ -6,14 +6,13 @@ manual checklist to run in Brave itself.
 ## Automated suite
 
 ```bash
-npm test          # 126 unit tests (day math, storage, exhaustion, accounting,
-                  # enforcement rules, quote deck, stats view, popup view)
+npm test          # day math, storage, usage accounting, ceremony, backup, and page views
 npm run build     # build dist/
 node tests-e2e/verify-4.2.mjs   # each verification, in order (they are slow:
 node tests-e2e/verify-5.1.mjs   # they observe real alarms/ceremony timers)
 node tests-e2e/verify-5.2.mjs
 node tests-e2e/verify-5.3.mjs
-node tests-e2e/verify-6.1.mjs
+node tests-e2e/verify-ceremony-personalization.mjs # quote editor, countdown, word gate, and recent passes
 node tests-e2e/verify-6.3.mjs
 node tests-e2e/verify-7.1.mjs
 node tests-e2e/verify-9.3.mjs   # ~2 min: waits for a real 1-min pass session
@@ -35,12 +34,12 @@ engine family.
 
 | Verification | Covers | Result |
 |---|---|---|
-| unit suite (126 tests) | day math, lazy day-roll + pruning, exhaustion incl. timed passes, multi-window accounting incl. same-domain dedupe, storage session map, dNR regex + rule diff, quote deck, stats view, popup view | PASS |
+| unit suite (186 tests) | day math, lazy day roll and pruning, timed passes, usage accounting, backup, quote challenges and deck, recent passes, Stats, and popup | PASS |
 | verify-4.2 | 60s foreground accrued in real time; background tab accrued ~0 | PASS |
 | verify-5.1 | exhausted site → dNR rule → real navigation redirected (incl. subdomain); budget recovery removes rule | PASS |
 | verify-5.2 | pass spend unblocks only that site; day roll expires the pass; re-exhausted site blocks again | PASS |
 | verify-5.3 | day-roll alarm scheduled at reset boundary; firing it re-syncs rules and reschedules | PASS |
-| verify-6.1 | ceremony: quote, fixed confessions, 30s countdown; each gate independently disables the button; reload restarts lockout; un-check disables | PASS |
+| verify-ceremony-personalization | quote editor, both deck modes, fallback, countdown restart, correct-word gate, paste prevention, and recent passes | PASS (v0.7.0) |
 | verify-6.3 | end-to-end: ceremony → override → navigates to real site; timed pass spent, override logged, rule removed; hard-block display when no passes | PASS |
 | verify-7.1 | stats page from seeded fixtures: today's meters/limits/passes, badge, override timestamps, history rows, live re-render | PASS |
 | verify-9.3 | timed day-pass: spend unblocks, in-session nav does not double-spend, session lapse auto-reblocks (pass-expire alarm), next navigation re-blocks and next pass is offered | PASS |
@@ -48,7 +47,7 @@ engine family.
 | verify-10.5 | passive watching: with zero interaction for 95s, both windows' usage keeps climbing via alarm ticks only (regression for the worker wake-up race that froze stats; reads via a detached extension window so they can't mask it) | PASS |
 | verify-popup | remaining-time popup from seeded fixtures: per-site remaining, exhausted + no-limit rows, combined remaining, reset label, options link; live re-render on usage accrual and settings edits; empty state | PASS (2026-11-09) |
 | verify-badge | minute suffixes, hidden badges on tabs without an individual limit, site exhaustion, blocking page, and rollover | PASS (v0.4.2) |
-| verify-portability | offline JSON and CSV downloads, atomic fresh-profile restore, cancelled and invalid files, restored popup and Stats history, blocking, active pass alarm, and deck position | PASS (v0.5.0) |
+| verify-portability | offline JSON and CSV downloads, atomic fresh-profile restore, cancelled and invalid files, restored popup and Stats history, blocking, active pass alarm, personal quotes, and deck position | PASS (v0.7.0) |
 | verify-reports | 370 retained records, weekly navigation, rounded day details, website durations and shares, budget labels, totals, and live updates | PASS (v0.6.7) |
 
 ## Manual checklist (Brave)
@@ -72,9 +71,14 @@ A site list you actually use makes the limits feel real; `example.com` /
    (or on another monitor) for ~3 minutes. The `example.com` meter must
    climb at real time even though its window never has focus. Minimize that
    window: counting stops; restore: it resumes.
-4. **Ceremony** — quote shows, timer runs while you read, Quick Override
-   stays disabled until the 30s AND all four confessions. Reload restarts the
-   timer from 30.
+4. **Ceremony** — add two quotes in Options and enable **Use only my quotes**.
+   Exhaust a site's budget and check that a personal quote appears with one
+   focused blank. Type the missing word before time runs out to check that
+   Quick Override stays disabled. Reload and check for the next quote and a
+   fresh 30-second countdown. Enter a wrong word and wait out the timer, then
+   correct it to unlock the button. Check the recent-pass count after spending
+   a pass and reopening the ceremony. Remove both personal quotes and check
+   that a bundled quote appears with own-quotes-only still enabled.
 5. **Day-pass scope** — with two exhausted sites, override one; the other
    stays blocked. The unblocked one loads for the pass session (below).
  5b. **Pass session expiry** — set "Day-pass session length" to 1 minute,

@@ -2,6 +2,7 @@ export const SETTINGS_KEY = 'settings';
 export const STATE_KEY = 'state';
 export const HISTORY_KEY = 'history';
 export const DECK_KEY = 'deck';
+export const USER_QUOTES_KEY = 'userQuotes';
 export const SESSION_KEY = 'activeSession';
 export const META_KEY = 'meta';
 
@@ -44,6 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
 export interface OverrideEntry {
   site: string;
   ts: number;
+  /** Ceremony completion flag kept for existing history, backups, and CSV exports. */
   affirmed: true;
 }
 
@@ -72,6 +74,11 @@ export type History = Record<string, DayRecord>;
 export interface DeckState {
   cycleOrder: number[];
   position: number;
+}
+
+export interface UserQuotes {
+  quotes: string[];
+  ownOnly: boolean;
 }
 
 /** The foreground-tab session currently being counted (background/index.ts). */

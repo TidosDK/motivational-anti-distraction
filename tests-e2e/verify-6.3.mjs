@@ -56,7 +56,7 @@ assert.strictEqual(await page.isVisible('#ceremony'), false, 'ceremony shown wit
 await page.close();
 
 // --- fresh day-pass: full ceremony flow ------------------------------------------
-await seed({ settings, state: exhausted });
+await seed({ settings, state: exhausted, userQuotes: { quotes: ['Protect your concentration.'], ownOnly: true } });
 await waitRules(1);
 
 const tab = await ctx.newPage();
@@ -65,7 +65,7 @@ assert.ok(tab.url().includes('interstitial.html?s=example.com'));
 await tab.waitForSelector('#ceremony:not([hidden])');
 assert.ok((await tab.textContent('#passes-left')).includes('1 of 1'));
 
-await tab.$$eval('#confessions input[type=checkbox]', (els) => els.forEach((el) => el.click()));
+await tab.getByRole('textbox', { name: 'Missing word' }).fill('concentration');
 await tab.waitForFunction(() => !document.querySelector('#override').disabled, null, { timeout: 40_000 });
 
 await tab.click('#override');

@@ -43,6 +43,10 @@ ceremony this week.
   checklist requirement is removed; the No-repeat quote deck requirement
   covers the user's effective deck; a new requirement adds the factual
   recent-passes line.
+- `usage-tracking` records a completed ceremony while preserving the existing
+  override history field.
+- `data-portability` includes personal quotes and their preference in JSON
+  backup and restores older backups without a personal deck.
 
 ## Impact
 
@@ -54,6 +58,6 @@ ceremony this week.
   key (`quotes: string[]`, `ownOnly: boolean`); the deck operates on the
   effective deck (deck.ts itself already rebuilds on length change).
 - `src/pages/options/main.ts` + `options.html` — quotes editor.
-- `src/shared/backup.ts` (from `add-data-portability`, lands earlier) —
-  envelope gains an optional `userQuotes` section (empty default on import).
+- `src/shared/backup.ts` — exports the `userQuotes` section. Older imports
+  without it use an empty personal deck and the mixed-deck preference.
 - README Features + `docs/testing.md` + one e2e verification script.

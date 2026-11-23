@@ -31,9 +31,10 @@ Countdown behavior (page-local, reload restarts) is spec-pinned and stays.
 ### D1: Worker picks the blank; page validates
 The `nextQuote` response is extended to
 `{ text: string /* quote with the word replaced by "____" */, expectedWord:
-string, author: string }`. The worker chooses the blank deterministically:
-longest word of the quote (preferring words ≥ 4 characters), punctuation
-stripped for the expected answer. The page compares trimmed, lower-cased
+string, author: string, blankIndex: number }`. The index tells the page which
+placeholder to replace when the quote already contains underscores. The
+worker blanks the first longest word, preferring words of at least four
+characters. It strips punctuation from the answer. The page compares trimmed, lower-cased
 input. Alternatives: page-side blanking (rejected — makes the choice a pure
 view concern that could drift from what the deck served); server-side
 validation (rejected — ceremony friction, not a security boundary, and the
@@ -49,11 +50,11 @@ position in the effective deck.
 
 ### D3: `userQuotes` key, effective deck in the worker
 New local key `userQuotes: { quotes: string[], ownOnly: boolean }` with a
-tolerant loader/saver (each quote capped at ~500 chars, trimmed, empty
-dropped). The worker builds the effective deck per draw: `ownOnly &&
-quotes.length > 0 ? quotes : [...BUNDLED, ...quotes]`. `deck.ts` needs no
-change (its length-mismatch rebuild already handles deck edits, which
-restarts the cycle — spec allows).
+tolerant loader/saver. Each quote is trimmed and capped at 500 characters.
+Empty entries, duplicates, and entries with no word are dropped. The worker
+combines personal and bundled entries per draw and uses the selected deck
+mode. Each edit saves the quotes and resets the cycle in the same storage
+write, including edits that leave the deck the same size.
 
 ### D4: `passesLast7Days` computed in `siteStatus`
 Added to the existing `siteStatus` response: today's

@@ -1,5 +1,6 @@
 import '../../shared/style.css';
-import { CONFESSIONS, LOCKOUT_SECONDS } from '../../shared/confessions';
+import { isQuoteAnswerCorrect, LOCKOUT_SECONDS, QUOTE_BLANK, type QuoteChallenge } from '../../shared/ceremony';
+import type { Quote } from '../../shared/quotes';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -7,7 +8,7 @@ const headline = $<HTMLElement>('#headline');
 const sub = $<HTMLElement>('#sub');
 const quoteEl = $<HTMLElement>('#quote');
 const ceremony = $<HTMLFormElement>('#ceremony');
-const confessionsBox = $<HTMLElement>('#confessions');
+const recentPasses = $<HTMLElement>('#recent-passes');
 const overrideBtn = $<HTMLButtonElement>('#override');
 const timerBar = $<HTMLElement>('#timer-bar');
 const timerLabel = $<HTMLElement>('#timer-label');
@@ -34,6 +35,7 @@ if (!domain) {
         exhausted?: boolean;
         passesTotal?: number;
         passesUsed?: number;
+        passesLast7Days?: number;
         passesActive?: boolean;
         passExpiresAt?: number | null;
       }
@@ -50,46 +52,56 @@ if (!domain) {
       : 'A day-pass is active for this site — opening it now.';
     location.replace(`https://${domain}`);
   } else {
-    const quote = (await chrome.runtime.sendMessage({ type: 'nextQuote' })) as
-      | { text: string; author: string }
-      | undefined;
-    if (quote) {
-      quoteEl.textContent = `“${quote.text}”`;
-      const cite = document.createElement('cite');
-      cite.textContent = `— ${quote.author}`;
-      quoteEl.appendChild(document.createElement('br'));
-      quoteEl.appendChild(cite);
+    const passesTotal = status.passesTotal ?? 0;
+    const passesRemaining = passesTotal - (status.passesUsed ?? 0);
+    const canSpend = !!status.exhausted && passesRemaining > 0;
+    const quote = (await chrome.runtime.sendMessage({ type: 'nextQuote', plainQuote: !canSpend })) as Quote | QuoteChallenge | undefined;
+    sub.textContent = status.exhausted
+      ? 'You have used today’s time for this site.'
+      : 'You still have time left on this site today.';
+
+    if (canSpend) {
+      if (quote && 'expectedWord' in quote) runCeremony(quote, passesRemaining, passesTotal);
+      else sub.textContent = 'Could not load the ceremony. Reload to try again.';
+    } else {
+      if (quote) renderQuote(quote);
+      hardBlock.hidden = !status.exhausted;
     }
 
-    const passesRemaining = (status.passesTotal ?? 0) - (status.passesUsed ?? 0);
-    if (status.exhausted && passesRemaining > 0) {
-      sub.textContent = 'You have used today\u2019s time for this site.';
-      await runCeremony(passesRemaining, status.passesTotal ?? 0);
-    } else if (status.exhausted) {
-      sub.textContent = 'You have used today\u2019s time for this site.';
-      hardBlock.hidden = false;
-    } else {
-      sub.textContent = 'You still have time left on this site today.';
+    const count = status.passesLast7Days ?? 0;
+    if (status.exhausted && count > 0) {
+      recentPasses.textContent = `You used ${count} ${count === 1 ? 'day-pass' : 'day-passes'} on this site in the last 7 days.`;
+      recentPasses.hidden = false;
     }
   }
 }
 
-async function runCeremony(passesRemaining: number, passesTotal: number): Promise<void> {
+function renderQuote(quote: Quote, parts: (string | Node)[] = [quote.text]): void {
+  const cite = document.createElement('cite');
+  cite.textContent = `— ${quote.author}`;
+  quoteEl.replaceChildren('“', ...parts, '”', cite);
+}
+
+function runCeremony(quote: QuoteChallenge, passesRemaining: number, passesTotal: number): void {
+  const answer = document.createElement('input');
+  answer.id = 'quote-answer';
+  answer.type = 'text';
+  answer.size = 14;
+  answer.placeholder = QUOTE_BLANK;
+  answer.autocomplete = 'off';
+  answer.autocapitalize = 'off';
+  answer.spellcheck = false;
+  answer.setAttribute('aria-label', 'Missing word');
+  answer.setAttribute('aria-describedby', 'quote-instructions');
+  answer.setAttribute('form', ceremony.id);
+  answer.addEventListener('paste', (event) => event.preventDefault());
+  answer.addEventListener('input', update);
+  renderQuote(quote, [quote.text.slice(0, quote.blankIndex), answer, quote.text.slice(quote.blankIndex + QUOTE_BLANK.length)]);
+
   ceremony.hidden = false;
   passesLeft.textContent = `Day-passes left today: ${passesRemaining} of ${passesTotal}`;
-
-  const boxes: HTMLInputElement[] = [];
-  for (const text of CONFESSIONS) {
-    const label = document.createElement('label');
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.addEventListener('change', update);
-    const span = document.createElement('span');
-    span.textContent = text;
-    label.append(input, span);
-    confessionsBox.appendChild(label);
-    boxes.push(input);
-  }
+  answer.focus({ preventScroll: true });
+  let spending = false;
 
   // The 30-second lockout starts now and runs while the quote is shown.
   // It lives only in this page load: reloading restarts it (anti-cheat).
@@ -99,7 +111,7 @@ async function runCeremony(passesRemaining: number, passesTotal: number): Promis
     const remaining = Math.max(0, LOCKOUT_SECONDS - elapsed);
     timerBar.style.width = `${Math.min(100, (elapsed / LOCKOUT_SECONDS) * 100)}%`;
     timerLabel.textContent = remaining > 0 ? `${Math.ceil(remaining)}s` : 'Ready';
-    overrideBtn.disabled = !(remaining <= 0 && boxes.every((b) => b.checked));
+    overrideBtn.disabled = spending || remaining > 0 || !isQuoteAnswerCorrect(answer.value, quote.expectedWord);
   }
   const interval = setInterval(() => {
     update();
@@ -109,15 +121,17 @@ async function runCeremony(passesRemaining: number, passesTotal: number): Promis
 
   ceremony.addEventListener('submit', async (e) => {
     e.preventDefault();
+    update();
     if (overrideBtn.disabled) return;
+    spending = true;
     overrideBtn.disabled = true;
     overrideBtn.textContent = 'Opening…';
-    const res = (await chrome.runtime.sendMessage({ type: 'spendPass', domain })) as
-      | { ok: boolean; url?: string; reason?: string }
-      | undefined;
+    const res: { ok: boolean; url?: string; reason?: string } | undefined = await chrome.runtime
+      .sendMessage({ type: 'spendPass', domain }).catch(() => undefined);
     if (res?.ok && res.url) {
       location.replace(res.url);
     } else {
+      spending = false;
       overrideBtn.textContent = 'Quick Override';
       passesLeft.textContent =
         res?.reason === 'no-passes-left' ? 'No day-passes left today.' : 'Could not spend a day-pass.';

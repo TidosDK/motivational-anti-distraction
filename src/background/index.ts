@@ -1,9 +1,10 @@
 import { nextReset } from '../shared/dayMath';
 import { domainMatches, hostFromUrl } from '../shared/domains';
-import { chromeKV, accrueForeground, ensureInstallMeta, loadDeck, loadSessions, loadSettings, loadState, loadUsageSnapshot, readStoredState, recordOverride, saveDeck, saveSessions, saveState, withStorageLock } from '../shared/storage';
+import { chromeKV, accrueForeground, ensureInstallMeta, loadDeck, loadHistory, loadSessions, loadSettings, loadState, loadUsageSnapshot, loadUserQuotes, readStoredState, recordOverride, saveDeck, saveSessions, saveState, withStorageLock } from '../shared/storage';
 import { SETTINGS_KEY, STATE_KEY } from '../shared/types';
 import { QUOTES } from '../shared/quotes';
 import { nextQuote } from '../shared/deck';
+import { countRecentPasses, createQuoteChallenge, effectiveQuotes } from '../shared/ceremony';
 import { updateActionStatus } from './actionStatus';
 import { computeBlockedDomains, diffRules, regexFilterFor, type RuleSpec } from './enforcement';
 import { applyPassSpend, isPassActive, isSiteExhausted } from '../shared/exhaustion';
@@ -347,39 +348,45 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
   if (typeof message !== 'object' || message === null || !('type' in message)) return;
-  const msg = message as { type: string; domain?: string };
+  const msg = message as { type: string; domain?: string; plainQuote?: boolean };
 
   if (msg.type === 'nextQuote') {
     void (async () => {
       const quote = await withStorageLock(async () => {
+        const quotes = effectiveQuotes(QUOTES, await loadUserQuotes(chromeKV));
         const deck = await loadDeck(chromeKV);
-        const r = nextQuote(deck, QUOTES.length, Math.random);
+        const r = nextQuote(deck, quotes.length, Math.random);
         await saveDeck(chromeKV, r.deck);
-        return QUOTES[r.index];
+        const selected = quotes[r.index];
+        return msg.plainQuote === true ? selected : createQuoteChallenge(selected);
       });
       sendResponse(quote);
     })();
     return true;
   }
 
-  if (msg.type === 'siteStatus' && msg.domain) {
+  if (msg.type === 'siteStatus' && typeof msg.domain === 'string') {
+    const domain = msg.domain;
     void (async () => {
-      const domain = msg.domain!;
-      const { settings, state, now } = await loadUsageSnapshot();
-      const site = settings.sites.find((s) => s.domain === domain);
-      if (!site) {
-        sendResponse({ known: false });
-        return;
-      }
-      const active = isPassActive(state, domain, now);
-      sendResponse({
-        known: true,
-        exhausted: isSiteExhausted(domain, state, settings, now),
-        passesTotal: site.passes,
-        passesUsed: state.passesUsed[domain] ?? 0,
-        passesActive: active,
-        passExpiresAt: active ? state.passesUntil[domain] : null,
+      const status = await withStorageLock(async () => {
+        const now = Date.now();
+        const settings = await loadSettings(chromeKV);
+        const site = settings.sites.find((s) => s.domain === domain);
+        if (!site) return { known: false };
+        const state = await loadState(chromeKV, settings, now);
+        const history = await loadHistory(chromeKV);
+        const active = isPassActive(state, domain, now);
+        return {
+          known: true,
+          exhausted: isSiteExhausted(domain, state, settings, now),
+          passesTotal: site.passes,
+          passesUsed: state.passesUsed[domain] ?? 0,
+          passesActive: active,
+          passExpiresAt: active ? state.passesUntil[domain] : null,
+          passesLast7Days: countRecentPasses(domain, state, history),
+        };
       });
+      sendResponse(status);
     })();
     return true;
   }

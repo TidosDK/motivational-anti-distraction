@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { launchBrave, sleep } from './helpers.mjs';
 
-const keys = ['settings', 'state', 'history', 'deck'];
+const keys = ['settings', 'state', 'history', 'deck', 'userQuotes'];
 const restoreStatus = '#data-status';
 
 async function download(page, button, filename) {
@@ -63,20 +63,16 @@ export async function verifyPortability(launch = launchBrave) {
       overrides: [{ site: 'example.com', ts: new Date(2026, 9, 2, 14, 5).getTime(), affirmed: true }],
     },
   };
+  const userQuotes = { quotes: ['Protect your concentration.', 'A small step counts.', 'Remember your priorities.'], ownOnly: true };
+  const deck = { cycleOrder: [2, 0, 1], position: 1 };
 
   const original = await launch();
   let data, files, expectedPopup;
   try {
     const page = await original.ctx.newPage();
     await page.goto(`chrome-extension://${original.id}/options.html`);
-    // Draw once to get the live deck length, then save a recognizable point in its cycle.
-    const deck = await page.evaluate(async () => {
-      await chrome.runtime.sendMessage({ type: 'nextQuote' });
-      const { deck } = await chrome.storage.local.get('deck');
-      return { cycleOrder: deck.cycleOrder, position: 7 };
-    });
-    data = { settings, state, history, deck };
-    await page.evaluate((data) => chrome.storage.local.set(data), data);
+    data = { settings, state, history, deck, userQuotes };
+    await page.evaluate((data) => navigator.locks.request('extension-data', () => chrome.storage.local.set(data)), data);
 
     const popup = await original.ctx.newPage();
     await popup.goto(`chrome-extension://${original.id}/popup.html`);
@@ -134,8 +130,10 @@ export async function verifyPortability(launch = launchBrave) {
     await importFile(page, files['backup.json'], true);
     await page.waitForFunction((selector) => document.querySelector(selector).textContent === 'Backup restored.', restoreStatus);
     assert.deepEqual(await page.evaluate((keys) => chrome.storage.local.get(keys), keys), data);
-    assert.deepEqual(await page.evaluate(() => globalThis.restoreEvents), [['deck', 'history', 'settings', 'state']]);
+    assert.deepEqual(await page.evaluate(() => globalThis.restoreEvents), [['deck', 'history', 'settings', 'state', 'userQuotes']]);
     assert.equal(await page.locator('#pass-session').inputValue(), '13');
+    assert.ok(await page.getByLabel('Use only my quotes').isChecked());
+    assert.deepEqual(await page.locator('#user-quotes li span').allTextContents(), userQuotes.quotes);
     const historyDates = ['2026-10-02', '2026-10-01'];
     await stats.locator('.history-row').first().waitFor();
     assert.deepEqual(await stats.locator('.history-date').allTextContents(), historyDates);
@@ -164,7 +162,8 @@ export async function verifyPortability(launch = launchBrave) {
     assert.equal(restoredExpiry, passExpiry);
 
     const quote = await page.evaluate(() => chrome.runtime.sendMessage({ type: 'nextQuote' }));
-    assert.ok(quote.text);
+    assert.equal(quote.text, 'Protect your ____.');
+    assert.equal(quote.expectedWord, 'concentration');
     const drawn = await page.evaluate(async () => (await chrome.storage.local.get('deck')).deck);
     assert.deepEqual(drawn, { cycleOrder: data.deck.cycleOrder, position: data.deck.position + 1 });
 
@@ -174,7 +173,7 @@ export async function verifyPortability(launch = launchBrave) {
   } finally {
     await fresh.ctx.close();
   }
-  console.log('verify-portability: passed offline downloads, atomic restore, rejected files, popup, history, blocking, active pass, and deck');
+  console.log('verify-portability: passed offline downloads, atomic restore, rejected files, popup, history, blocking, active pass, and personal deck');
   return files;
 }
 

@@ -1,13 +1,8 @@
 # Motivational Anti-Distraction
 
 A Chrome/Brave extension that closes your time-sink sites once you've had
-enough — and makes you *honestly admit why* before letting you back in.
-
-The premise: soft blockers fail because the override is frictionless. Here,
-every extra visit past your budget costs you a short motivational ceremony —
-a quote plus a mandatory 30-second pause during which you check four honest
-confessions ("This is for work", "I am NOT slacking off right now!", …).
-The friction is the feature.
+enough. To open one again, read a quote and fill in its missing word during
+a mandatory 30-second pause.
 
 ## Features (v1)
 
@@ -30,11 +25,14 @@ The friction is the feature.
 - **Configurable day reset** — the usage day flips at an hour you pick
   (default 05:00), so 1 a.m. browsing counts toward the night it started in.
   All counters, passes and stats roll together at that boundary.
-- **The ceremony** — past your budget, the site redirects to an
-  interstitial: one motivational quote from a 274-quote deck (shuffle-cycled,
-  no repeats until the deck is exhausted), a fixed list of confessions you
-  must all affirm, and a 30-second lockout running *while you read the
-  quote*. Reload restarts the lockout.
+- **The ceremony** — Quick Override unlocks after the 30-second countdown
+  and a correct answer to the quote's missing word. Reloading restarts the
+  countdown and draws the next quote. The ceremony shows how many day-passes
+  you used on that site in the last seven usage days when the count is above zero.
+- **Personal quotes** — add quotes under **Ceremony quotes** in Options.
+  The deck cycles through each quote once before reshuffling. **Use only my
+  quotes** limits the deck to your entries and falls back to the bundled deck
+  when your list is empty. JSON backups include your quotes and this preference.
 - **Day-passes** — each site gets a configurable number of passes per usage
   day (default 1). One pass opens *that* site for a short session (default
   10 minutes, configurable in settings) instead of the whole day; when the
@@ -107,9 +105,9 @@ manifest version (1–4 dot-separated integers — no `-beta` suffixes).
 ## Your data
 
 In Options, **Your data** lets you download a JSON backup of your settings,
-current usage and passes, retained history, and quote-deck position. Importing
-a valid backup replaces those data after you confirm. The two CSV downloads
-contain retained usage by day and the override log.
+current usage and passes, retained history, personal quotes, and quote-deck
+position. Importing a valid backup replaces those data after you confirm.
+The two CSV downloads contain retained usage by day and the override log.
 
 Downloads and imports work offline. The files are plaintext and can include
 your site list and activity history.
@@ -127,8 +125,8 @@ session per window, so unfocused windows on other monitors still count; a
 domain shown in several windows charges once). When a site's meter
 crosses its limit or the combined total crosses the budget, a
 `declarativeNetRequest` session rule redirects its main-frame navigations to
-the interstitial page. The interstitial runs the ceremony (confessions +
-concurrent 30 s lockout) and, on Quick Override, spends a day-pass: the rule
+the interstitial page. The interstitial runs the missing-word ceremony with
+a concurrent 30-second lockout. Quick Override spends a day-pass, and the rule
 for that domain comes down for the pass session (default 10 minutes, capped
 at the day boundary). Expiry is lazy — a pass exempts its site only while its
 stored expiry timestamp is in the future — with a one-shot alarm at the expiry

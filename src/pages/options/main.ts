@@ -1,14 +1,16 @@
 import '../../shared/style.css';
 import { buildBackup, buildHistoryCsv, buildOverridesCsv, parseBackup } from '../../shared/backup';
+import { hasQuoteWord } from '../../shared/ceremony';
 import { dayKey } from '../../shared/dayMath';
 import { normalizeDomain } from '../../shared/domains';
-import { chromeKV, loadDeck, loadHistory, loadSettings, loadState, normalizeSettings, saveSettings, withStorageLock } from '../../shared/storage';
-import { DECK_KEY, HISTORY_KEY, SETTINGS_KEY, STATE_KEY, type Settings } from '../../shared/types';
+import { chromeKV, loadDeck, loadHistory, loadSettings, loadState, loadUserQuotes, MAX_QUOTE_LENGTH, normalizeSettings, normalizeUserQuote, normalizeUserQuotes, saveSettings, saveUserQuotes, withStorageLock } from '../../shared/storage';
+import { DECK_KEY, HISTORY_KEY, SETTINGS_KEY, STATE_KEY, USER_QUOTES_KEY, type Settings, type UserQuotes } from '../../shared/types';
 
 document.querySelector<HTMLElement>('#version')!.textContent =
   `v${chrome.runtime.getManifest().version}`;
 
 let settings: Settings = await loadSettings(chromeKV);
+let userQuotes = await loadUserQuotes(chromeKV);
 
 const tbody = document.querySelector('#site-table tbody')!;
 const emptyHint = document.querySelector<HTMLElement>('#empty-hint')!;
@@ -19,6 +21,12 @@ const budgetInput = document.querySelector<HTMLInputElement>('#combined-budget')
 const resetInput = document.querySelector<HTMLInputElement>('#reset-hour')!;
 const passSessionInput = document.querySelector<HTMLInputElement>('#pass-session')!;
 const saveStatus = document.querySelector<HTMLElement>('#save-status')!;
+const ownQuotesOnly = document.querySelector<HTMLInputElement>('#own-quotes-only')!;
+const quoteFallback = document.querySelector<HTMLElement>('#quote-fallback')!;
+const quotesList = document.querySelector<HTMLUListElement>('#user-quotes')!;
+const quoteInput = document.querySelector<HTMLTextAreaElement>('#quote-text')!;
+const quoteStatus = document.querySelector<HTMLElement>('#quote-status')!;
+quoteInput.maxLength = MAX_QUOTE_LENGTH;
 
 let statusTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -132,8 +140,79 @@ function renderSettings(): void {
   renderSites();
 }
 
+function renderUserQuotes(): void {
+  ownQuotesOnly.checked = userQuotes.ownOnly;
+  quoteFallback.hidden = !userQuotes.ownOnly || userQuotes.quotes.length > 0;
+  quotesList.replaceChildren();
+  for (const text of userQuotes.quotes) {
+    const row = document.createElement('li');
+    const quote = document.createElement('span');
+    quote.textContent = text;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = 'Remove';
+    remove.setAttribute('aria-label', `Remove quote: ${text}`);
+    remove.addEventListener('click', () => void editQuotes((current) => ({
+      ...current, quotes: current.quotes.filter((value) => value !== text),
+    }), 'Quote removed.'));
+    row.append(quote, remove);
+    quotesList.append(row);
+  }
+}
+
+function showQuoteStatus(message: string, isError = false): void {
+  quoteStatus.textContent = message;
+  quoteStatus.classList.toggle('error', isError);
+}
+
+async function editQuotes(edit: (current: UserQuotes) => UserQuotes, message: string): Promise<boolean> {
+  try {
+    userQuotes = await withStorageLock(async () => {
+      const current = await loadUserQuotes(chromeKV);
+      const updated = edit(current);
+      if (JSON.stringify(current) !== JSON.stringify(updated)) await saveUserQuotes(chromeKV, updated);
+      return updated;
+    });
+    renderUserQuotes();
+    showQuoteStatus(message);
+    return true;
+  } catch (error) {
+    renderUserQuotes();
+    showQuoteStatus(errorMessage('Could not save quotes.', error), true);
+    return false;
+  }
+}
+
+document.querySelector('#add-quote')!.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const original = quoteInput.value;
+  const text = normalizeUserQuote(original);
+  if (!hasQuoteWord(text)) {
+    showQuoteStatus('Enter a quote with at least one word.', true);
+    return;
+  }
+  const saved = await editQuotes((current) => {
+    if (current.quotes.includes(text)) throw new Error('You already added this quote.');
+    return { ...current, quotes: [...current.quotes, text] };
+  }, 'Quote added.');
+  if (saved && quoteInput.value === original) quoteInput.value = '';
+});
+
+ownQuotesOnly.addEventListener('change', () => {
+  const ownOnly = ownQuotesOnly.checked;
+  void editQuotes((current) => ({ ...current, ownOnly }), 'Quote preference saved.');
+});
+
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== 'local' || !changes[SETTINGS_KEY]) return;
+  if (area !== 'local') return;
+  if (changes[USER_QUOTES_KEY]) {
+    const restoredQuotes = normalizeUserQuotes(changes[USER_QUOTES_KEY].newValue);
+    if (JSON.stringify(userQuotes) !== JSON.stringify(restoredQuotes)) {
+      userQuotes = restoredQuotes;
+      renderUserQuotes();
+    }
+  }
+  if (!changes[SETTINGS_KEY]) return;
   const restored = normalizeSettings(changes[SETTINGS_KEY].newValue as Partial<Settings> | undefined);
   if (JSON.stringify(settings) === JSON.stringify(restored)) return;
   settings = restored;
@@ -141,6 +220,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 renderSettings();
+renderUserQuotes();
 
 const backupFile = document.querySelector<HTMLInputElement>('#backup-file')!;
 const importButton = document.querySelector<HTMLButtonElement>('#import-backup')!;
@@ -176,7 +256,8 @@ async function exportBackup(): Promise<void> {
       const state = await loadState(chromeKV, settings, now);
       const history = await loadHistory(chromeKV);
       const deck = await loadDeck(chromeKV);
-      return buildBackup(settings, state, history, deck, now);
+      const userQuotes = await loadUserQuotes(chromeKV);
+      return buildBackup(settings, state, history, deck, userQuotes, now);
     });
     download(JSON.stringify(backup, null, 2) + '\n', 'application/json', `anti-distraction-backup-${dayKey(Date.now())}.json`);
   } catch (error) {
@@ -213,7 +294,7 @@ async function importBackup(file: File): Promise<void> {
       showDataStatus(result.errors.join('\n'), true);
       return;
     }
-    if (!window.confirm('Replace the current settings, usage, history, and quote-deck position with this backup?')) {
+    if (!window.confirm('Replace the current settings, usage, history, personal quotes, and quote-deck position with this backup?')) {
       showDataStatus('Import cancelled.');
       return;
     }
@@ -224,9 +305,12 @@ async function importBackup(file: File): Promise<void> {
       [STATE_KEY]: data.state,
       [HISTORY_KEY]: data.history,
       [DECK_KEY]: data.deck,
+      [USER_QUOTES_KEY]: data.userQuotes,
     }));
     settings = data.settings;
     renderSettings();
+    userQuotes = data.userQuotes;
+    renderUserQuotes();
     showDataStatus('Backup restored.');
   } catch (error) {
     showDataStatus(errorMessage('Could not restore backup.', error), true);

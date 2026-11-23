@@ -1,4 +1,5 @@
 import { dayIndex, dayKey, usageDayStart } from './dayMath';
+import { hasQuoteWord } from './ceremony';
 import {
   DEFAULT_SETTINGS,
   DECK_KEY,
@@ -9,6 +10,7 @@ import {
   SETTINGS_KEY,
   SESSION_KEY,
   STATE_KEY,
+  USER_QUOTES_KEY,
   type DayRecord,
   type DayState,
   type DeckState,
@@ -17,6 +19,7 @@ import {
   type Settings,
   type ActiveSession,
   type SessionMap,
+  type UserQuotes,
 } from './types';
 
 /** Minimal storage abstraction so tests can run without the chrome namespace. */
@@ -227,7 +230,7 @@ export async function accrueForeground(
   await kv.set({ [HISTORY_KEY]: pruneHistory(history), [STATE_KEY]: fresh });
 }
 
-/** Record that a day-pass was spent on `site` (with the affirmed checklist). */
+/** Record that a day-pass was spent on `site` after the ceremony. */
 export async function recordOverride(
   kv: KV,
   settings: Settings,
@@ -249,6 +252,38 @@ export async function loadDeck(kv: KV): Promise<DeckState | undefined> {
 
 export function saveDeck(kv: KV, deck: DeckState): Promise<void> {
   return kv.set({ [DECK_KEY]: deck });
+}
+
+export const MAX_QUOTE_LENGTH = 500;
+
+export function normalizeUserQuote(value: string): string {
+  const trimmed = value.trim();
+  return Array.from(trimmed).slice(0, MAX_QUOTE_LENGTH).join('').trimEnd();
+}
+
+export function normalizeUserQuotes(value: unknown): UserQuotes {
+  const raw = typeof value === 'object' && value !== null ? value as Partial<UserQuotes> : undefined;
+  const quotes = new Set<string>();
+  if (Array.isArray(raw?.quotes)) {
+    for (const value of raw.quotes) {
+      if (typeof value !== 'string') continue;
+      const text = normalizeUserQuote(value);
+      if (hasQuoteWord(text)) quotes.add(text);
+    }
+  }
+  return { quotes: [...quotes], ownOnly: raw?.ownOnly === true };
+}
+
+export async function loadUserQuotes(kv: KV): Promise<UserQuotes> {
+  return normalizeUserQuotes(await rawGet(kv, USER_QUOTES_KEY));
+}
+
+/** Save an edit and start a fresh cycle, including edits that keep the same deck size. */
+export function saveUserQuotes(kv: KV, userQuotes: UserQuotes): Promise<void> {
+  return kv.set({
+    [USER_QUOTES_KEY]: normalizeUserQuotes(userQuotes),
+    [DECK_KEY]: { cycleOrder: [], position: 0 } satisfies DeckState,
+  });
 }
 
 /** Visible-window focus sessions persisted across service-worker evictions. */

@@ -22,14 +22,12 @@ judgmental or shaming framing.
 ## MODIFIED Requirements
 
 ### Requirement: Unlock ceremony
-The interstitial SHALL present a single combined ceremony: a quote from the
-user's effective deck with exactly one word blanked, and a visible countdown
-of at least 30 seconds that starts when the interstitial is displayed and
-runs while the quote is shown. The "Quick Override" button SHALL remain
-disabled until BOTH the countdown has fully elapsed AND the user has filled
-the blanked word correctly (comparison ignoring case and surrounding
-whitespace). The blanked word and expected answer SHALL be determined by the
-extension's background logic, not chosen by the page.
+The interstitial SHALL show a quote from the effective deck with exactly one
+word blanked. The background SHALL choose the blank and its expected answer.
+A visible countdown of at least 30 seconds SHALL run from the display of the
+quote. Quick Override SHALL stay disabled until the countdown elapses and
+the user types the missing word correctly, ignoring case and whitespace at
+the ends of the answer.
 
 #### Scenario: Button locked during countdown
 - **WHEN** the interstitial has been displayed for 10 seconds and the blanked
@@ -58,15 +56,12 @@ extension's background logic, not chosen by the page.
   remains readable
 
 ### Requirement: No-repeat quote deck
-The system SHALL maintain the ceremony quote deck as the user's **effective
-deck**: the bundled local library plus any user-added quotes (the user SHALL
-be able to add quotes and to restrict the deck to their own quotes only;
-with own-quotes-only enabled and no user quotes, the bundled deck is used).
-Quotes SHALL be selected by shuffle-cycling: every quote in the effective
-deck is shown once (in random order) before any quote can appear again, then
-the deck reshuffles. The deck state MUST persist across sessions, editing
-the deck MAY restart the cycle, and quote selection MUST NOT require network
-access.
+The effective deck SHALL mix bundled and user-added quotes. The user SHALL
+be able to add quotes and restrict the deck to their own quotes. An empty
+personal-only deck SHALL fall back to bundled quotes. Each quote SHALL be
+shown once in random order before the deck reshuffles. The deck state SHALL
+persist across browser sessions. Editing the deck MAY restart the cycle.
+Quote selection MUST work offline.
 
 #### Scenario: No repeat within a full cycle
 - **WHEN** the user sees consecutive ceremony quotes from an effective deck
