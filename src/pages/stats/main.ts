@@ -2,7 +2,7 @@ import '../../shared/style.css';
 import { dayIndex, keyAtDayIndex } from '../../shared/dayMath';
 import { chromeKV, loadHistory, loadInstallMeta, loadSettings, loadState, withStorageLock } from '../../shared/storage';
 import { buildHistoryViews, buildStatsView, formatDuration, type HistoryViews, type UsageReportDay } from '../../shared/stats';
-import { HISTORY_KEY, META_KEY, SETTINGS_KEY, STATE_KEY, type InstallMeta } from '../../shared/types';
+import { HISTORY_KEY, META_KEY, SETTINGS_KEY, STATE_KEY } from '../../shared/types';
 
 const stats = document.querySelector<HTMLElement>('#stats')!;
 const SHOW_USAGE_CALENDAR: boolean = false;
@@ -33,7 +33,7 @@ const cellDate = new Intl.DateTimeFormat(undefined, {
 });
 const cellMinutes = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' });
-const weekDate = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const reportDate = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const weekdayName = new Intl.DateTimeFormat(undefined, { weekday: 'short', timeZone: 'UTC' });
 
 function dateForDay(key: string): Date {
@@ -148,7 +148,7 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement
   function drawWeek(): void {
     previous.disabled = week === earliestWeek;
     next.disabled = week === latestWeek;
-    dateRange.textContent = weekDate.formatRange(dateForDay(keyAtDayIndex(week)), dateForDay(keyAtDayIndex(week + 6)));
+    dateRange.textContent = reportDate.formatRange(dateForDay(keyAtDayIndex(week)), dateForDay(keyAtDayIndex(week + 6)));
 
     const days = report.days.slice(Math.max(0, week - first), Math.max(0, week + 7 - first));
     const scale = Math.max(1, budgetMin, ...days.map(({ minutes }) => minutes)) * 1.12;
@@ -216,7 +216,7 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement
   return section;
 }
 
-function renderHistoryReports(report: HistoryViews, meta: InstallMeta | undefined, budgetMin: number): HTMLElement {
+function renderHistoryReports(report: HistoryViews, budgetMin: number): HTMLElement {
   const section = el('section', 'card history-reports');
   section.append(el('h2', undefined, SHOW_USAGE_CALENDAR ? 'Usage calendar' : 'Daily usage'));
 
@@ -240,24 +240,19 @@ function renderHistoryReports(report: HistoryViews, meta: InstallMeta | undefine
 
   const summary = el('div', 'history-summary');
   const streak = el('div', 'history-metric');
-  streak.append(el('h3', undefined, 'Under-budget streaks'));
+  streak.append(el('h3', undefined, 'Under-budget Streaks'));
   const streakValue = el('p', 'report-streak', `Current ${report.streaks.current} · Best ${report.streaks.best} days`);
   streakValue.title = 'Compared with current budgets. Days with zero usage count toward the streak.';
-  streak.append(streakValue, el('p', 'muted', 'Compared with current budgets'));
+  streak.append(streakValue);
 
   const totals = el('div', 'history-metric');
-  totals.append(el('h3', undefined, 'Recorded totals'));
-  const { trackedSec, overrideCount, firstDay, lastDay, dayCount } = report.totals;
+  totals.append(el('h3', undefined, 'Total Recorded'));
+  const { trackedSec, overrideCount, firstDay, lastDay } = report.totals;
   const overrides = `${overrideCount} ${overrideCount === 1 ? 'override' : 'overrides'}`;
   totals.append(el('p', 'report-totals', `${formatDuration(trackedSec)} tracked · ${overrides}`));
   if (firstDay) {
-    const dates = firstDay === lastDay ? firstDay : `${firstDay} – ${lastDay}`;
-    totals.append(el('p', 'muted report-window', `${dates} · ${dayCount} usage ${dayCount === 1 ? 'day' : 'days'}`));
-  }
-  if (report.daysSinceInstall !== null) {
-    const days = report.daysSinceInstall;
-    const estimate = meta?.estimated ? ' (estimated from retained history)' : '';
-    totals.append(el('p', 'muted report-install', `${days} usage ${days === 1 ? 'day' : 'days'} since install${estimate}`));
+    const dates = reportDate.formatRange(dateForDay(firstDay), dateForDay(lastDay));
+    totals.append(el('p', 'muted report-window', dates));
   }
 
   summary.append(streak, totals);
@@ -336,7 +331,7 @@ function render(): void {
       today.appendChild(list);
     }
     stats.appendChild(today);
-    const reportSection = renderHistoryReports(reports, meta, settings.combinedBudgetMin);
+    const reportSection = renderHistoryReports(reports, settings.combinedBudgetMin);
     stats.append(reportSection);
     const calendar = reportSection.querySelector<HTMLElement>('.heatmap-scroll');
     if (calendar) {
@@ -368,6 +363,14 @@ function render(): void {
       hist.appendChild(row);
     }
     stats.appendChild(hist);
+
+    const days = reports.daysSinceInstall;
+    if (days !== null) {
+      const footer = el('footer');
+      const estimate = meta?.estimated ? ' (estimated from retained history)' : '';
+      footer.append(el('p', 'muted report-install', `${days} usage ${days === 1 ? 'day' : 'days'} since install${estimate}`));
+      stats.append(footer);
+    }
   })();
 }
 

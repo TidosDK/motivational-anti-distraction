@@ -64,16 +64,17 @@ The label SHALL be readable without relying on color.
 
 ### Requirement: Lifetime totals
 The stats view SHALL show total tracked time and total override ceremonies
-over the retained history window, plus the number of usage days since the
-extension was first installed. Displayed figures MUST be measured values;
+over the retained history window with a readable date range in **Total Recorded**.
+The Stats footer SHALL show the number of usage days since the extension was
+first installed. Displayed figures MUST be measured values;
 the system MUST NOT present invented projections (such as "hours you would
 otherwise have wasted") as facts, and any estimate shown SHALL be labeled
 as an estimate.
 
 #### Scenario: Totals survive pruning
 - **WHEN** history older than the retention window has been pruned
-- **THEN** the day count since install remains exact, and the totals are
-  labeled with the window they cover
+- **THEN** the footer still calculates install age from the saved install
+  date, and the totals show the date range they cover
 
 #### Scenario: No vanity metrics
 - **WHEN** the user reviews the lifetime totals

@@ -17,6 +17,7 @@ export async function verifyReports(launch = launchBrave, inspect) {
     const page = await ctx.newPage();
     await page.goto(`chrome-extension://${id}/stats.html`);
     await page.getByText('No usage days recorded yet.').waitFor();
+    assert.equal(await page.locator('.report-window').count(), 0, 'empty reports omit the date range');
     await waitUntil(() => page.evaluate(async () => (await chrome.storage.local.get('meta')).meta?.installTs),
       'the worker records an install date');
     const freshMeta = await page.evaluate(async () => (await chrome.storage.local.get('meta')).meta);
@@ -32,6 +33,9 @@ export async function verifyReports(launch = launchBrave, inspect) {
       const day = dayAt(offset);
       return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
     };
+    const dateRange = (offset) => page.evaluate(([first, last]) => new Intl.DateTimeFormat(undefined, {
+      day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+    }).formatRange(new Date(`${first}T00:00:00Z`), new Date(`${last}T00:00:00Z`)), [keyAt(offset), keyAt(0)]);
 
     const settings = {
       version: 1, resetHour, passSessionMin: 10, combinedBudgetMin: 60,
@@ -56,12 +60,15 @@ export async function verifyReports(launch = launchBrave, inspect) {
     assert.equal(Object.keys(saved.history).sort()[0], keyAt(371));
     assert.deepEqual(saved.meta, meta, 'day roll preserves the install metadata');
 
-    await waitUntil(async () => (await page.locator('.report-window').textContent())?.includes('372 usage days'),
+    const windowLabel = page.locator('.report-window');
+    const retainedDates = await dateRange(371);
+    await waitUntil(async () => (await windowLabel.textContent()) === retainedDates,
       'the report includes the missing day and the current day in the retained range');
-    assert.equal(await page.locator('.report-window').textContent(), `${keyAt(371)} – ${keyAt(0)} · 372 usage days`);
-    assert.equal(await page.locator('.report-totals').textContent(), '4h 11m tracked · 3 overrides');
-    assert.equal(await page.locator('.report-install').textContent(), '500 usage days since install (estimated from retained history)');
-    assert.equal(await page.locator('.report-streak').textContent(), 'Current 3 · Best 363 days');
+    const metric = (name) => page.locator('.history-metric').filter({ has: page.getByRole('heading', { name, exact: true }) });
+    assert.deepEqual(await metric('Total Recorded').locator('p').allTextContents(), ['4h 11m tracked · 3 overrides', retainedDates]);
+    assert.deepEqual(await metric('Under-budget Streaks').locator('p').allTextContents(), ['Current 3 · Best 363 days']);
+    const installAge = page.locator('#stats > footer:last-child .report-install');
+    assert.equal(await installAge.textContent(), '500 usage days since install (estimated from retained history)');
     assert.equal(await page.locator('.heatmap-grid').count(), 0, 'calendar mode is off by default');
     assert.equal(await page.locator('.week-day').count(), 7);
     assert.equal(await page.locator('.week-average-label').textContent(), 'Daily average');
@@ -120,10 +127,16 @@ export async function verifyReports(launch = launchBrave, inspect) {
 
     const last370Days = Object.fromEntries(Object.entries(saved.history).filter(([key]) => key >= keyAt(369)));
     await page.evaluate((history) => chrome.storage.local.set({ history }), last370Days);
-    await waitUntil(async () => (await page.locator('.report-window').textContent())?.endsWith('· 370 usage days'),
+    const prunedDates = await dateRange(369);
+    await waitUntil(async () => (await windowLabel.textContent()) === prunedDates,
       'the report handles an exact 370-day calendar span');
-    assert.match(await page.locator('.report-window').textContent(), /· 370 usage days$/);
-    assert.match(await page.locator('.report-install').textContent(), /^500 usage days since install/);
+    assert.match(await installAge.textContent(), /^500 usage days since install/);
+
+    await page.evaluate((history) => chrome.storage.local.set({ history }), {
+      [keyAt(0)]: { perSite: {}, totalSec: 0, overrides: [] },
+    });
+    const singleDate = await dateRange(0);
+    await waitUntil(async () => (await windowLabel.textContent()) === singleDate, 'a one-day report shows a single date');
     console.log('verify-reports: passed retention, weekly navigation, daily budget labels, totals, and live re-scoring');
   } finally {
     await ctx.close();

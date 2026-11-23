@@ -21,6 +21,7 @@
 - [x] 4.2 Add within-budget and over-budget labels to Recent days. Verify that the chart, rows, and streaks agree on individual and combined limits and update after a budget edit.
 - [x] 4.3 Make Daily average the prominent figure and use blue and violet bars with a legend. Verify the chart in light and dark layouts.
 - [x] 4.4 Use teal for within-budget days and red for over-budget days. Make the Daily average label smaller and gray, and reduce the time value by 25%.
+- [x] 4.5 Shift within-budget styling toward green. Rename Under-budget Streaks and remove its subtitle. Show the usage, override count, and date range under Total Recorded, with install age in the Stats footer. Verify the revised layout and live updates.
 
 ## Workflow follow-up
 

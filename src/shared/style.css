@@ -6,7 +6,7 @@
   --line: #d8d8de;
   --accent: #b3541e;
   --accent-soft: #f2e2d5;
-  --within: #117776;
+  --within: #18734f;
   --over: #b8323b;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -18,7 +18,7 @@
     --line: #34343d;
     --accent: #e07b45;
     --accent-soft: #3a2c22;
-    --within: #57c3b7;
+    --within: #63c89d;
     --over: #f15d5d;
   }
 }

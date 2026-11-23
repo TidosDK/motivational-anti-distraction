@@ -15,15 +15,13 @@ retention, not new tracking.
 - **Weekly usage chart** on the stats page with daily bars, a combined
   budget line, and day selection. The calendar implementation remains
   available behind a disabled feature flag.
-- **Under-budget streaks**: current and best run of consecutive usage days
+- **Under-budget Streaks**: current and best run of consecutive usage days
   that stayed inside every budget — a record, not a score: losing a streak
   changes nothing about budgets, passes, or ceremony.
 - **Recent days budget status** shows which dates were within or over
   budget using the same comparison as the streaks.
-- **Lifetime totals**: total tracked time and total overrides/ceremonies,
-  computed over the (now year-long) retained window plus a
-  "using since install" day count — honest measurable numbers only, no
-  invented "hours you would have wasted" estimates.
+- **Total Recorded** shows tracked time and override count with the retained
+  date range. The Stats footer shows usage days since installation.
 - **Retention raised** from 31 to 370+ usage days (a year of daily records
   is a few KB; the 30-day spec floor is kept as a floor, not a target).
 - No new permissions, no network, no new stored counters.

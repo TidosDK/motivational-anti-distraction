@@ -38,8 +38,8 @@ Daily usage, budget status, streak lengths, and totals are pure projections
 shared/stats.ts). Alternative — incrementing lifetime counters inside
 `loadState` — rejected: multi-context concurrent rolls would double-count,
 and the fix (a serialized fold) adds state that itself needs migration.
-With 370-day retention the "lifetime" figure is honest as a **windowed**
-number labeled with its date range. Install age is a separate value for the
+**Total Recorded** shows tracked time and override count on one line and the
+localized date range beneath it. The Stats footer shows install age for the
 current browser profile.
 
 ### D3: `installTs` recorded once, seeded from oldest history
@@ -53,17 +53,16 @@ it survives history pruning.
 ### D4: Streak semantics: inside-budget = within every currently configured
 budget, counted from the first recorded usage day; days with no record
 inside that span count as inside-budget (zero usage). Judged against
-current settings, so raising/lowering a budget retroactively re-scores
-history — accepted (honesty about method beats fake snapshots), and the
-stats row states "Compared with current budgets". Recent days and the chart
-use the same limit comparison and can name the budgets a day exceeded.
+current settings, so raising or lowering a budget re-scores history. The
+**Under-budget Streaks** value explains that comparison in its tooltip. Recent
+days and the chart use the same comparison and can name the budgets a day exceeded.
 
 ### D5: Weekly bars with the budget as a reference
 Show the latest seven usage days, with earlier weeks available through
 arrow buttons. The daily average includes quiet days in the displayed span
 and uses a gray label below the heading in the typographic hierarchy.
 Bar height represents combined minutes. The reference line marks the
-combined budget. A legend identifies teal bars for within-budget days and
+combined budget. A legend identifies green bars for within-budget days and
 red bars for days that exceeded a site limit or the combined budget. The
 calendar implementation remains a disabled display mode using the same daily data.
 
