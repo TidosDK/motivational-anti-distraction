@@ -64,6 +64,11 @@ export async function verifyReports(launch = launchBrave, inspect) {
     assert.equal(await page.locator('.report-streak').textContent(), 'Current 3 · Best 363 days');
     assert.equal(await page.locator('.heatmap-grid').count(), 0, 'calendar mode is off by default');
     assert.equal(await page.locator('.week-day').count(), 7);
+    assert.equal(await page.locator('.week-average-label').textContent(), 'Daily average');
+    const average = page.locator('.week-average-value');
+    assert.equal(await average.textContent(), '27m');
+    assert.ok(await average.evaluate((el) => parseFloat(getComputedStyle(el).fontSize) >= 40),
+      'the daily average time is visually prominent');
     const nextWeek = page.getByRole('button', { name: 'Next week' });
     const previousWeek = page.getByRole('button', { name: 'Previous week' });
     assert.ok(await nextWeek.isDisabled());

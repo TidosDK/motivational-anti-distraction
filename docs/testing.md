@@ -49,7 +49,7 @@ engine family.
 | verify-popup | remaining-time popup from seeded fixtures: per-site remaining, exhausted + no-limit rows, combined remaining, reset label, options link; live re-render on usage accrual and settings edits; empty state | PASS (2026-11-09) |
 | verify-badge | minute suffixes, hidden badges on tabs without an individual limit, site exhaustion, blocking page, and rollover | PASS (v0.4.2) |
 | verify-portability | offline JSON and CSV downloads, atomic fresh-profile restore, cancelled and invalid files, restored popup and Stats history, blocking, active pass alarm, and deck position | PASS (v0.5.0) |
-| verify-reports | 370 retained records, weekly navigation and day details, per-day budget labels, the totals window, and live streak re-scoring | PASS (v0.6.1) |
+| verify-reports | 370 retained records, weekly navigation, prominent daily average, day details, per-day budget labels, the totals window, and live streak re-scoring | PASS (v0.6.2) |
 
 ## Manual checklist (Brave)
 
@@ -167,7 +167,7 @@ Fill this table after running the steps above:
 | 14 | Away vs. hands-off watching | — | v0.3.1 accepted with the manual Brave check waived by the user on 2026-11-23 |
 | 15 | Toolbar badge | ✅ | Brave 157, temporary profile. `17m` and `99m` fit in v0.4.2. Navigating away from an exhausted site restored the plain orange icon. v0.4.1 checks covered `3h`, `9h+`, and the blocking page. User confirmed v0.4.2 on 2026-11-23. |
 | 16 | Data portability | ✅ | Brave 157 downloaded all three files and restored matching popup totals in a fresh profile. Cancelled and invalid imports preserved storage. LibreOffice Calc opened both CSVs with matching headers and values. On 2026-11-23 the user confirmed that Chrome restored the blocked sites, daily rules, and history under Stats. |
-| 17 | History reports | ✅ | The user confirmed the v0.6.0 calendar was visible. v0.6.1 browser tests verified weekly navigation, date inspection, and budget labels in Chromium and Brave. Brave screenshots covered the light desktop and narrow dark layouts. A temporary Chromium build also verified that enabling the calendar flag restores the calendar view. |
+| 17 | History reports | ✅ | The user confirmed the v0.6.0 calendar was visible. v0.6.1 browser tests verified weekly navigation, date inspection, and budget labels in Chromium and Brave. A temporary Chromium build verified that enabling the calendar flag restores it. Brave screenshots verified the v0.6.2 average and palette in light desktop and narrow dark layouts. |
 
 ### Findings & triage — 2026-11-17 (user: "watching YouTube, the count is definitely off — way less")
 

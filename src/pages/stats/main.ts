@@ -122,7 +122,9 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement
   navigation.append(previous, dateRange, next);
 
   const summary = el('div', 'week-summary');
-  const average = el('p', 'week-average');
+  const average = el('dl', 'week-average');
+  const averageValue = el('dd', 'week-average-value');
+  average.append(el('dt', 'week-average-label', 'Daily average'), averageValue);
   summary.append(average, el('p', 'week-budget muted', `Combined budget ${formatDuration(budgetMin * 60)}`));
 
   const plot = el('div', 'week-plot');
@@ -132,9 +134,16 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement
   const budgetLine = el('div', 'week-budget-line');
   axis.append(budgetLine);
   plot.append(grid, axis);
+
+  const legend = el('div', 'week-legend muted');
+  for (const [budget, label] of [['within', 'Within budget'], ['over', 'Over budget']]) {
+    const entry = el('span', 'week-legend-entry', label);
+    entry.dataset.budget = budget;
+    legend.append(entry);
+  }
   const detail = el('div', 'week-detail');
   detail.setAttribute('aria-live', 'polite');
-  section.append(navigation, summary, plot, detail);
+  section.append(navigation, summary, plot, legend, detail);
 
   function drawWeek(): void {
     previous.disabled = week === earliestWeek;
@@ -145,7 +154,7 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement
     const scale = Math.max(1, budgetMin, ...days.map(({ minutes }) => minutes)) * 1.12;
     budgetLine.style.bottom = `${budgetMin / scale * 100}%`;
     const mean = days.reduce((sum, day) => sum + day.minutes, 0) / days.length;
-    average.textContent = `${formatDuration(mean * 60)} daily average`;
+    averageValue.textContent = formatDuration(mean * 60);
     grid.replaceChildren();
 
     const buttons = new Map<string, HTMLButtonElement>();

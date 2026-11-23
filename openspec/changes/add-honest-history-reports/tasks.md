@@ -19,6 +19,7 @@
 
 - [x] 4.1 Replace the default calendar with a navigable seven-day bar chart and keep the calendar behind a disabled feature flag. Verify quiet days, exact day details, and the previous and next week controls.
 - [x] 4.2 Add within-budget and over-budget labels to Recent days. Verify that the chart, rows, and streaks agree on individual and combined limits and update after a budget edit.
+- [x] 4.3 Make Daily average the prominent figure and use blue and violet bars with a legend. Verify the chart in light and dark layouts.
 
 ## Workflow follow-up
 

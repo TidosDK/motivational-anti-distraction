@@ -60,10 +60,12 @@ use the same limit comparison and can name the budgets a day exceeded.
 
 ### D5: Weekly bars with the budget as a reference
 Show the latest seven usage days, with earlier weeks available through
-arrow buttons. Daily averages include quiet days in the displayed span.
+arrow buttons. The prominent daily average includes quiet days in the
+displayed span.
 Bar height represents combined minutes. The reference line marks the
-combined budget, while color and text indicate when a per-site limit or
-the combined budget was exceeded. The calendar implementation is kept as
+combined budget. A legend identifies blue bars for within-budget days and
+violet bars for days that exceeded a site limit or the combined budget.
+The calendar implementation is kept as
 a disabled display mode using the same daily data.
 
 ## Risks / Trade-offs
