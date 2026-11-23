@@ -89,7 +89,6 @@ function budgetStatus({ combinedExceeded, exceededSites }: UsageBudgetStatus): H
   const label = kind === 'site' ? 'Site limit exceeded' : combinedBudgetLabel(combinedExceeded);
   const status = el('span', 'budget-status', label);
   status.dataset.budget = kind;
-  if (exceededSites.length) status.title = `Exceeded ${exceededSites.join(', ')}`;
   return status;
 }
 
@@ -205,9 +204,6 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): { chart: HT
         el('strong', undefined, roundedUsage(day.minutes)),
         budgetStatus(day.budget),
       );
-      if (day.budget.exceededSites.length) {
-        detail.append(el('p', 'muted week-overages', `Exceeded ${day.budget.exceededSites.join(', ')}`));
-      }
       siteContent.replaceChildren(renderDaySites(day.perSite));
     }
 
@@ -399,7 +395,10 @@ function render(): void {
         .map(([d, sec]) => `${d} ${formatDuration(sec)}`);
       row.appendChild(el('div', 'muted history-detail', parts.join(' · ') || 'no usage'));
       const status = el('div', 'history-status');
-      status.append(budgetStatus(day.budget));
+      const badge = budgetStatus(day.budget);
+      const { exceededSites } = day.budget;
+      if (exceededSites.length) badge.title = `Exceeded ${exceededSites.join(', ')}`;
+      status.append(badge);
       if (day.record.overrides.length > 0) {
         status.append(el('span', 'history-overrides', `${day.record.overrides.length} pass(es) used`));
       }

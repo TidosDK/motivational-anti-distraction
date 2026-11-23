@@ -17,7 +17,7 @@ be informational only.
 
 #### Scenario: Usage details on demand
 - **WHEN** the user selects a day in the chart
-- **THEN** the chart shows the date, rounded combined usage, and any exceeded limits
+- **THEN** the chart shows the date, rounded combined usage, and a budget status label without listing exceeded sites
 
 #### Scenario: Inspect older days
 - **WHEN** retained usage predates the displayed week and the user goes back a week

@@ -55,7 +55,7 @@ budget, counted from the first recorded usage day; days with no record
 inside that span count as inside-budget (zero usage). Judged against
 current settings, so raising or lowering a budget re-scores history. The
 **Under-budget Streaks** value explains that comparison in its tooltip.
-Recent days and the chart can name the sites that exceeded their limits.
+Recent days can name the sites that exceeded their limits.
 
 ### D5: Weekly bars with the budget as a reference
 Show the latest seven usage days, with earlier weeks available through

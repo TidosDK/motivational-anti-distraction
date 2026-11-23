@@ -49,7 +49,7 @@ engine family.
 | verify-popup | remaining-time popup from seeded fixtures: per-site remaining, exhausted + no-limit rows, combined remaining, reset label, options link; live re-render on usage accrual and settings edits; empty state | PASS (2026-11-09) |
 | verify-badge | minute suffixes, hidden badges on tabs without an individual limit, site exhaustion, blocking page, and rollover | PASS (v0.4.2) |
 | verify-portability | offline JSON and CSV downloads, atomic fresh-profile restore, cancelled and invalid files, restored popup and Stats history, blocking, active pass alarm, and deck position | PASS (v0.5.0) |
-| verify-reports | 370 retained records, weekly navigation, rounded day details, website durations and shares, combined-budget colors, totals, and live updates | PASS (v0.6.6) |
+| verify-reports | 370 retained records, weekly navigation, rounded day details, website durations and shares, budget labels, totals, and live updates | PASS (v0.6.7) |
 
 ## Manual checklist (Brave)
 

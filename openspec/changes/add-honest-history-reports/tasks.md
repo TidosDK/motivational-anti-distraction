@@ -24,6 +24,7 @@
 - [x] 4.5 Shift within-budget styling toward green. Rename Under-budget Streaks and remove its subtitle. Show the usage, override count, and date range under Total Recorded, with install age in the Stats footer. Verify the revised layout and live updates.
 - [x] 4.6 Enlarge the weekly date range and round selected-day usage to whole minutes in hours and minutes. Reserve red for combined-budget overages in the chart and Recent days. Verify site-only overages, rounding, and live updates.
 - [x] 4.7 Show ranked website usage for the selected day below streaks and totals, including shares and durations only for sites with tracked time. Remove the weekly chart legend. Verify day selection, quiet days, and live usage.
+- [x] 4.8 Remove the named site overage message from the selected day in Daily usage. Keep the budget status label.
 
 ## Workflow follow-up
 

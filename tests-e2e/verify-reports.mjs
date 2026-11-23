@@ -134,9 +134,12 @@ export async function verifyReports(launch = launchBrave, inspect) {
 
     await day(3).click();
     assert.equal(await day(3).getAttribute('aria-pressed'), 'true');
-    assert.equal(await page.locator('.week-detail strong').textContent(), '40m');
-    assert.equal(await page.locator('.week-detail .budget-status').getAttribute('data-budget'), 'site');
-    assert.equal(await page.locator('.week-overages').textContent(), 'Exceeded example.com');
+    const selectedDay = page.locator('.week-detail');
+    assert.equal(await selectedDay.locator('strong').textContent(), '40m');
+    assert.equal(await selectedDay.locator('.budget-status').textContent(), 'Site limit exceeded');
+    assert.equal(await selectedDay.locator('.budget-status').getAttribute('data-budget'), 'site');
+    assert.equal(await selectedDay.locator('.budget-status').getAttribute('title'), null);
+    assert.doesNotMatch(await selectedDay.textContent(), /example\.com/);
     assert.deepEqual(await siteRows(), [
       ['example.com', '32m', '80%', '80%'], ['news.example.org', '8m', '20%', '20%'],
     ], 'sites are ordered by time and zero-usage sites are omitted');

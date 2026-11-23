@@ -185,7 +185,6 @@ ul.overrides { margin: 0.5rem 0 0; padding-left: 1.25rem; color: var(--muted); f
   margin-top: 0.8rem;
 }
 .week-detail-date { color: var(--muted); font-size: 0.9rem; }
-.week-overages { flex-basis: 100%; margin: 0; overflow-wrap: anywhere; }
 .heatmap-scroll { overflow-x: auto; padding-bottom: 0.5rem; }
 .heatmap-grid {
   display: grid;
