@@ -19,9 +19,9 @@ restarts.
 - **THEN** that day's record shows 45m for YouTube, 20m for Instagram, and 65m combined
 
 ### Requirement: Override event log
-The system SHALL record each spent day-pass with the site, the timestamp, and
-the fact that the confession checklist was affirmed. The log MUST persist
-across browser restarts.
+The system SHALL record each spent day-pass with the site, timestamp, and
+confirmation that the ceremony was completed. The log MUST persist across
+browser restarts and remain readable for existing records.
 
 #### Scenario: Override recorded
 - **WHEN** the user completes a ceremony and spends a day-pass on YouTube at 14:05

@@ -2,45 +2,46 @@
 
 ## Purpose
 
-Defines the unlock ceremony shown on the interstitial — motivational quote,
-fixed confession checkboxes, enforced 30-second lockout — and the day-pass
-economy that governs how often the ceremony can actually unlock a site.
+Defines the unlock ceremony for blocked sites. The user types a quote from
+their effective deck while a 30-second countdown runs. The day-pass allowance
+determines how often the ceremony can open each site.
 
 ## Requirements
 
 ### Requirement: Unlock ceremony
-The interstitial SHALL present a single combined ceremony: a motivational
-quote, the fixed confession checklist, and a visible countdown of at least 30
-seconds that starts when the interstitial is displayed and runs while the
-quote is shown. The "Quick Override" button SHALL remain disabled until BOTH
-the countdown has fully elapsed AND every checkbox is ticked.
+The interstitial SHALL show the full quote from the effective deck with
+live feedback on correct characters and typos. A visible countdown of at
+least 30 seconds SHALL start when the quote appears. Quick Override SHALL
+stay disabled until the countdown elapses and the full input matches the
+displayed quote, including capitalization, punctuation, and spacing.
 
 #### Scenario: Button locked during countdown
-- **WHEN** the interstitial has been displayed for 10 seconds and all checkboxes are ticked
+- **WHEN** the interstitial has been displayed for 10 seconds and the full
+  quote is already typed correctly
 - **THEN** the Quick Override button remains disabled
 
 #### Scenario: Button locked without full checklist
-- **WHEN** the countdown has fully elapsed but one checkbox is unticked
+- **WHEN** the countdown has fully elapsed but the typed quote is incomplete
+  or contains an error
 - **THEN** the Quick Override button remains disabled
 
 #### Scenario: Override unlocks
-- **WHEN** the countdown has fully elapsed and all checkboxes are ticked and the user activates Quick Override
+- **WHEN** the countdown has fully elapsed and the full quote is typed
+  correctly and the user activates Quick Override
 - **THEN** a day-pass is spent and the blocked site becomes accessible
 
 #### Scenario: Reload restarts countdown
 - **WHEN** the user reloads the interstitial before the countdown completes
-- **THEN** the countdown starts again from the full duration
+- **THEN** the countdown starts again from the full duration (and the reload
+  draws the next quote from the deck, like any fresh ceremony load)
 
-### Requirement: Fixed confession checklist
-The ceremony SHALL display a fixed bundled list of confession statements
-including at least "This is for work" and "I am NOT slacking off right now!".
-The list MUST be identical on every ceremony and every checkbox MUST be
-tickable. The user MUST NOT be able to reconfigure or remove the list in this
-version.
+#### Scenario: Typing feedback follows corrections
+- **WHEN** the user types a wrong character and corrects it
+- **THEN** the quote marks that character as a typo and clears the mark after correction
 
-#### Scenario: Checklist is complete and fixed
-- **WHEN** the interstitial is displayed on any site, any day
-- **THEN** the same set of confession checkboxes is shown, all requiring a tick
+#### Scenario: Type punctuation on a standard keyboard
+- **WHEN** the source quote contains curly quotation marks, a long dash, or an ellipsis
+- **THEN** the prompt displays keyboard-friendly punctuation that can be typed as shown
 
 ### Requirement: Per-site day-pass allowance
 Each blocked site SHALL have a user-configurable number of day-passes per
@@ -84,16 +85,49 @@ across days.
 - **THEN** after the daily reset the count is back to the configured value, not doubled
 
 ### Requirement: No-repeat quote deck
-The system SHALL bundle a local library of motivational quotes and select
-them by shuffle-cycling: every quote in the deck is shown once (in random
-order) before any quote can appear again, then the deck reshuffles. The deck
-state MUST persist across sessions, and quote selection MUST NOT require
-network access.
+The effective deck SHALL mix bundled and user-added quotes. The user SHALL
+be able to add quotes and restrict the deck to their own quotes. An empty
+personal-only deck SHALL fall back to bundled quotes. Each quote SHALL be
+shown once in random order before the deck reshuffles. The deck state SHALL
+persist across browser sessions. Editing the deck MAY restart the cycle.
+Quote selection MUST work offline.
 
 #### Scenario: No repeat within a full cycle
-- **WHEN** the user sees 50 consecutive ceremony quotes from a deck of 50
+- **WHEN** the user sees consecutive ceremony quotes from an effective deck
+  of 50
 - **THEN** no quote appears twice within that cycle
 
 #### Scenario: Deck survives restart
 - **WHEN** the browser restarts mid-deck and another ceremony occurs
-- **THEN** the next quote still respects the no-repeat rule of the current cycle
+- **THEN** the next quote still respects the no-repeat rule of the current
+  cycle
+
+#### Scenario: User quote joins the deck
+- **WHEN** the user adds a quote to the deck
+- **THEN** it is shuffled into the cycle like any bundled quote and is shown
+  at most once per cycle
+
+#### Scenario: Own-quotes-only mode
+- **WHEN** the user enables own-quotes-only and has added at least one quote
+- **THEN** ceremonies draw exclusively from the user's quotes
+
+#### Scenario: Own-only with no quotes falls back
+- **WHEN** own-quotes-only is enabled but the user has added no quotes
+- **THEN** ceremonies draw from the bundled deck rather than showing nothing
+
+### Requirement: Recent-passes line
+When the user has spent day-passes on the blocked site within the previous
+7 usage days (including today), the ceremony SHALL display one factual line
+stating that count for this site. With zero passes in that window the line
+MUST NOT be shown. The line SHALL state the measured count only — no
+judgmental or shaming framing.
+
+#### Scenario: Honest reminder
+- **WHEN** the user has spent 3 day-passes on youtube.com in the last 7
+  usage days and a youtube.com ceremony is shown
+- **THEN** the ceremony includes a factual line noting the 3 passes in the
+  last 7 days
+
+#### Scenario: First ceremony of the week
+- **WHEN** the site has no spent passes in the previous 7 usage days
+- **THEN** no recent-passes line is shown

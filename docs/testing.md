@@ -177,6 +177,7 @@ Fill this table after running the steps above:
 | 15 | Toolbar badge | ✅ | Brave 157, temporary profile. `17m` and `99m` fit in v0.4.2. Navigating away from an exhausted site restored the plain orange icon. v0.4.1 checks covered `3h`, `9h+`, and the blocking page. User confirmed v0.4.2 on 2026-11-23. |
 | 16 | Data portability | ✅ | Brave 157 downloaded all three files and restored matching popup totals in a fresh profile. Cancelled and invalid imports preserved storage. LibreOffice Calc opened both CSVs with matching headers and values. On 2026-11-23 the user confirmed that Chrome restored the blocked sites, daily rules, and history under Stats. |
 | 17 | History reports | ✅ | The user confirmed the v0.6.0 calendar was visible. A temporary Chromium build verified that enabling the calendar flag restores it. Chromium and Brave verified day selection, live updates, and the website breakdown. The user approved the v0.6.7 Stats reports on 2026-11-23. |
+| 18 | Ceremony personalization | ✅ | The user confirmed the full-quote typing flow in v0.7.1 on 2026-11-24. Chromium and Brave verified live typing feedback and reload. Chromium verified pass spending and backup restore. |
 
 ### Findings & triage — 2026-11-17 (user: "watching YouTube, the count is definitely off — way less")
 
@@ -251,11 +252,3 @@ Fill this table after running the steps above:
 - **Step 12** instructions rewritten to be concrete (idle a blocked
   foreground tab ~5 min, then check stats ≈ full duration). Steps 7–8 to be
   tested later by user.
-
-
-New feedback:
-1. Seems to work
-2. I have tested the extension for some days now, and there is some major issues with counting the time. When I have a Youtube video running, it doesn't count all of the time. It only seems to count when I move the mouse or something. I want it to always count the time for when I have a website open, but ignore tabs that are in the background. I have multiple monitors so I might have a youtube video open on one screen and something else on the other. It should count the Youtube video also as I can still watch videos when they are on the other screen.
-5. The daypass seems to work fine.
-7. The day roll works fine.
-8. The night owl works fine. It resets at the defined time.
