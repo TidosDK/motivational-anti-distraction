@@ -1,4 +1,5 @@
 import { dayKey, nextReset, usageDayStart } from './dayMath';
+import { combinedTotalSeconds } from './exhaustion';
 import type { DayRecord, DayState, History, OverrideEntry, Settings } from './types';
 
 export interface SiteUsageRow {
@@ -133,6 +134,34 @@ export interface PopupView {
   resetsAt: number;
 }
 
+function combinedRemainingSeconds(settings: Settings, usedSec: number): number {
+  return Math.max(0, settings.combinedBudgetMin * 60 - usedSec);
+}
+
+/** A four-character status for the current usage day. */
+export function computeBadgeStatus(
+  settings: Settings,
+  state: DayState,
+  now: number,
+): { badgeText: string; overBudget: boolean } {
+  if (settings.sites.length === 0) return { badgeText: '', overBudget: false };
+
+  const usedSec = state.dayStart === usageDayStart(now, settings.resetHour)
+    ? combinedTotalSeconds(state)
+    : 0;
+  const remainingSec = combinedRemainingSeconds(settings, usedSec);
+  if (remainingSec === 0) return { badgeText: '0', overBudget: true };
+
+  // Show whole minutes remaining and reserve zero for an exhausted budget.
+  const minutes = Math.max(1, Math.floor(remainingSec / 60));
+  if (minutes <= 99) return { badgeText: String(minutes), overBudget: false };
+  if (minutes >= 600) return { badgeText: '10h+', overBudget: false };
+
+  const hours = Math.floor(minutes / 60);
+  const minutePart = String(minutes % 60).padStart(2, '0');
+  return { badgeText: `${hours}h${minutePart}`, overBudget: false };
+}
+
 /**
  * Pure projection for the toolbar popup: remaining time per blocked site and
  * for the combined budget. Sites without a per-site limit carry `null`
@@ -159,14 +188,14 @@ export function buildPopupView(settings: Settings, state: DayState, now: number)
   }
   sites.sort((a, b) => a.domain.localeCompare(b.domain));
 
-  const combinedUsedSec = Object.values(state.perSiteSeconds).reduce((a, b) => a + b, 0);
+  const combinedUsedSec = combinedTotalSeconds(state);
   const combinedBudgetSec = settings.combinedBudgetMin * 60;
 
   return {
     sites,
     combinedUsedSec,
     combinedBudgetMin: settings.combinedBudgetMin,
-    combinedRemainingSec: Math.max(0, combinedBudgetSec - combinedUsedSec),
+    combinedRemainingSec: combinedRemainingSeconds(settings, combinedUsedSec),
     combinedFraction: Math.min(1, combinedUsedSec / combinedBudgetSec),
     resetsAt: nextReset(now, settings.resetHour),
   };

@@ -1,11 +1,13 @@
 // Usage: node tools/make-icons.mjs public/icons
-// Renders the Motivational Anti-Distraction icon: rounded square in the
-// extension's accent orange (#b3541e, src/shared/style.css --accent) with a
-// white clock glyph (ring + hands + hub). Supersampled raster, PNG via zlib.
+// Renders the Motivational Anti-Distraction clock icon in accent orange and
+// budget-exhausted red. Supersampled raster, PNG via zlib.
 import { deflateSync } from 'node:zlib';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
-const ORANGE = [0xb3, 0x54, 0x1e];
+const variants = [
+  { suffix: '', accent: [0xb3, 0x54, 0x1e] },
+  { suffix: '-red', accent: [0xb3, 0x21, 0x24] },
+];
 const WHITE = [255, 255, 255];
 
 // --- geometry in unit space (0..1), scaled per size ---
@@ -31,7 +33,7 @@ const inWhiteShape = (x, y) =>
   nearSeg(x, y, 0.5, 0.5, 0.72, 0.5, 0.042) || // hour hand → 3
   dist(x, y, 0.5, 0.5) <= 0.06; // hub
 
-function render(size) {
+function render(size, accent) {
   const SS = size <= 16 ? 16 : 8; // supersample factor
   const samples = new Uint8Array(size * size * 4);
   const r = 0.23; // corner radius
@@ -43,7 +45,7 @@ function render(size) {
           const x = (px + (sx + 0.5) / SS) / size;
           const y = (py + (sy + 0.5) / SS) / size;
           if (!inRoundedRect(x, y, r)) continue;
-          const c = inWhiteShape(x, y) ? WHITE : ORANGE;
+          const c = inWhiteShape(x, y) ? WHITE : accent;
           rs += c[0]; gs += c[1]; bs += c[2]; as += 255;
         }
       }
@@ -98,8 +100,10 @@ function encodePng(size, rgba) {
 
 const outDir = process.argv[2];
 mkdirSync(outDir, { recursive: true });
-for (const size of [16, 32, 48, 128]) {
-  const file = `${outDir}/icon-${size}.png`;
-  writeFileSync(file, encodePng(size, render(size)));
-  console.log('wrote', file);
+for (const { suffix, accent } of variants) {
+  for (const size of [16, 32, 48, 128]) {
+    const file = `${outDir}/icon-${size}${suffix}.png`;
+    writeFileSync(file, encodePng(size, render(size, accent)));
+    console.log('wrote', file);
+  }
 }

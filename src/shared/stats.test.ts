@@ -9,7 +9,7 @@ import {
   recordOverride,
   saveSettings,
 } from './storage';
-import { buildPopupView, buildStatsView, formatDuration } from './stats';
+import { buildPopupView, buildStatsView, computeBadgeStatus, formatDuration } from './stats';
 import { DEFAULT_SETTINGS, SCHEMA_VERSION } from './types';
 import type { Settings } from './types';
 
@@ -212,5 +212,64 @@ describe('buildPopupView', () => {
     const view = buildPopupView(settings({ sites: [] }), stateWith({}), NOW);
     expect(view.sites).toEqual([]);
     expect(view.combinedRemainingSec).toBe(120 * 60);
+  });
+});
+
+describe('computeBadgeStatus', () => {
+  const now = new Date(2026, 9, 30, 20).getTime();
+  const dayStart = usageDayStart(now, 5);
+  const state = { ...freshState(dayStart), perSiteSeconds: { 'youtube.com': 60 } };
+
+  it.each([
+    [1, '0', true],
+    [2, '1', false],
+    [48, '47', false],
+    [100, '99', false],
+    [101, '1h40', false],
+    [600, '9h59', false],
+    [601, '10h+', false],
+  ])('formats a %i-minute budget with one minute used', (combinedBudgetMin, badgeText, overBudget) => {
+    expect(computeBadgeStatus(settings({ combinedBudgetMin }), state, now)).toEqual({
+      badgeText,
+      overBudget,
+    });
+  });
+
+  it('reserves zero for exhaustion even with only a second remaining', () => {
+    const almostSpent = { ...state, perSiteSeconds: { 'youtube.com': 119 } };
+    expect(computeBadgeStatus(settings({ combinedBudgetMin: 2 }), almostSpent, now)).toEqual({
+      badgeText: '1',
+      overBudget: false,
+    });
+    expect(computeBadgeStatus(settings({ combinedBudgetMin: 1 }), almostSpent, now)).toEqual({
+      badgeText: '0',
+      overBudget: true,
+    });
+  });
+
+  it.each([
+    [100, '99'],
+    [600, '9h59'],
+  ])('keeps the lower format just below %i minutes remaining', (combinedBudgetMin, badgeText) => {
+    const stateWithOneSecondUsed = { ...state, perSiteSeconds: { 'youtube.com': 1 } };
+    expect(computeBadgeStatus(settings({ combinedBudgetMin }), stateWithOneSecondUsed, now)).toEqual({
+      badgeText,
+      overBudget: false,
+    });
+  });
+
+  it('hides the badge when no sites are configured, even with usage from a removed site', () => {
+    expect(computeBadgeStatus(settings({ sites: [], combinedBudgetMin: 1 }), state, now)).toEqual({
+      badgeText: '',
+      overBudget: false,
+    });
+  });
+
+  it('shows the fresh budget after a usage-day rollover', () => {
+    const tomorrow = nextReset(now, 5);
+    expect(computeBadgeStatus(settings({ combinedBudgetMin: 1 }), state, tomorrow)).toEqual({
+      badgeText: '1',
+      overBudget: false,
+    });
   });
 });

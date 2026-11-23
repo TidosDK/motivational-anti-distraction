@@ -4,6 +4,7 @@ import { chromeKV, accrueForeground, loadDeck, loadSessions, loadSettings, loadS
 import { SETTINGS_KEY, STATE_KEY } from '../shared/types';
 import { QUOTES } from '../shared/quotes';
 import { nextQuote } from '../shared/deck';
+import { updateActionStatus } from './actionStatus';
 import { computeBlockedDomains, diffRules, regexFilterFor, type RuleSpec } from './enforcement';
 import { applyPassSpend, isPassActive, isSiteExhausted } from '../shared/exhaustion';
 import { awayChargePlan, closeWindowSession, hasAnySession, isAwayNow, pauseAllSessions, setWindowSession, tickAll, type Segment, type SessionMap } from './accounting';
@@ -70,8 +71,9 @@ function interstitialUrl(domain: string): string {
 
 async function refreshRulesNow(): Promise<void> {
   const settings = await loadSettings(chromeKV);
-  const state = await loadState(chromeKV, settings, Date.now());
-  const desired: RuleSpec[] = computeBlockedDomains(settings, state, Date.now()).map((domain, i) => ({
+  const now = Date.now();
+  const state = await loadState(chromeKV, settings, now);
+  const desired: RuleSpec[] = computeBlockedDomains(settings, state, now).map((domain, i) => ({
     id: i + 1,
     domain,
     redirectUrl: interstitialUrl(domain),
@@ -81,22 +83,24 @@ async function refreshRulesNow(): Promise<void> {
     redirectUrl: r.action.redirect?.regexSubstitution ?? r.action.redirect?.url ?? '',
   }));
   const { add, removeIds } = diffRules(desired, existing);
-  if (add.length === 0 && removeIds.length === 0) return;
-  await chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: removeIds,
-    addRules: add.map((r) => ({
-      id: r.id,
-      priority: 1,
-      action: {
-        type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
-        redirect: { url: r.redirectUrl },
-      },
-      condition: {
-        regexFilter: regexFilterFor(r.domain),
-        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
-      },
-    })),
-  });
+  if (add.length > 0 || removeIds.length > 0) {
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: removeIds,
+      addRules: add.map((r) => ({
+        id: r.id,
+        priority: 1,
+        action: {
+          type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
+          redirect: { url: r.redirectUrl },
+        },
+        condition: {
+          regexFilter: regexFilterFor(r.domain),
+          resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+        },
+      })),
+    });
+  }
+  await updateActionStatus(settings, state, now).catch((err) => console.error('toolbar status update failed', err));
 }
 
 /**
