@@ -162,8 +162,7 @@ export async function verifyPortability(launch = launchBrave) {
     assert.equal(restoredExpiry, passExpiry);
 
     const quote = await page.evaluate(() => chrome.runtime.sendMessage({ type: 'nextQuote' }));
-    assert.equal(quote.text, 'Protect your ____.');
-    assert.equal(quote.expectedWord, 'concentration');
+    assert.equal(quote.text, 'Protect your concentration.');
     const drawn = await page.evaluate(async () => (await chrome.storage.local.get('deck')).deck);
     assert.deepEqual(drawn, { cycleOrder: data.deck.cycleOrder, position: data.deck.position + 1 });
 

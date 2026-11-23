@@ -3,8 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { launchBrave, sleep } from './helpers.mjs';
 
 const personal = [
-  { text: 'Protect your concentration.', masked: '“Protect your ____.”', answer: 'concentration' },
-  { text: 'Remember your priorities.', masked: '“Remember your ____.”', answer: 'priorities' },
+  { text: 'Protect your concentration.', target: 'Protect your concentration.' },
+  { text: 'Start small — and don’t stop…', target: "Start small - and don't stop..." },
 ];
 
 async function waitFor(check, message) {
@@ -63,11 +63,14 @@ export async function verifyCeremonyPersonalization(launch = launchBrave, inspec
     await page.clock.install();
     await page.goto(`https://${domain}/`);
     assert.equal(page.url(), `${root}/interstitial.html?s=${domain}`);
-    const answer = page.getByRole('textbox', { name: 'Missing word' });
+    const answer = page.getByRole('textbox', { name: 'Type the quote' });
     const unlock = page.getByRole('button', { name: 'Quick Override' });
     const countdown = page.locator('#timer-label');
     const recent = page.locator('#recent-passes');
     const quote = page.locator('#quote');
+    const preview = quote.locator('#quote-preview');
+    const typingStatus = page.locator('#typing-status');
+    const marks = (mark) => preview.locator(`[data-typing="${mark}"]`);
     await answer.waitFor();
     assert.doesNotMatch(await quote.locator('cite').textContent(), /Personal quote/, 'own-only falls back when the list is empty');
     assert.equal(await recent.textContent(), 'You used 3 day-passes on this site in the last 7 days.');
@@ -82,7 +85,7 @@ export async function verifyCeremonyPersonalization(launch = launchBrave, inspec
     await ownOnly.uncheck();
     await waitFor(async () => (await optionStatus.textContent()) === 'Quote preference saved.', 'mixed quote mode saves');
     const mixed = await options.evaluate(async () => {
-      const next = () => chrome.runtime.sendMessage({ type: 'nextQuote', plainQuote: true });
+      const next = () => chrome.runtime.sendMessage({ type: 'nextQuote' });
       const order = [(await next()).text];
       const { deck } = await chrome.storage.local.get('deck');
       while (order.length < deck.cycleOrder.length) order.push((await next()).text);
@@ -97,15 +100,11 @@ export async function verifyCeremonyPersonalization(launch = launchBrave, inspec
       'own-only mode saves before the ceremony draws');
     const displayed = async () => {
       await answer.waitFor();
-      const masked = await quote.evaluate((element) => Array.from(element.childNodes).map((node) => {
-        if (node instanceof HTMLInputElement) return node.placeholder;
-        return node.nodeType === Node.TEXT_NODE ? node.textContent : '';
-      }).join(''));
-      const match = personal.find((item) => item.masked === masked);
-      assert.ok(match, `expected a personal challenge, got ${masked}`);
-      assert.ok(await answer.evaluate((input) => document.activeElement === input), 'the blank receives focus');
-      assert.equal(await quote.locator('input').count(), 1);
-      assert.ok(!(await quote.textContent()).includes(match.answer), 'the answer stays out of the quote text');
+      const text = await preview.textContent();
+      const match = personal.find((item) => item.target === text);
+      assert.ok(match, `expected the full personal quote, got ${text}`);
+      assert.ok(await answer.evaluate((input) => document.activeElement === input), 'the typing field receives focus');
+      assert.equal(await marks('next').textContent(), text[0]);
       assert.equal(await quote.locator('cite').textContent(), '— Personal quote');
       return match;
     };
@@ -118,26 +117,44 @@ export async function verifyCeremonyPersonalization(launch = launchBrave, inspec
       const event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
       input.dispatchEvent(event);
       return event.defaultPrevented;
-    }, first.answer);
-    assert.ok(pasteBlocked, 'the missing-word field blocks paste');
+    }, first.target);
+    assert.ok(pasteBlocked, 'the quote field blocks paste');
     assert.equal(await answer.inputValue(), '');
-    await answer.fill(first.answer);
+    await answer.pressSequentially(`${first.target.slice(0, 3)}?`);
+    assert.equal(await marks('correct').count(), 3);
+    assert.equal(await marks('incorrect').count(), 1);
+    assert.equal(await marks('next').count(), 1);
+    assert.equal(await answer.getAttribute('aria-invalid'), 'true');
+    await answer.press('Backspace');
+    assert.equal(await marks('incorrect').count(), 0, 'correcting a typo clears its highlight');
+    await answer.fill(first.target);
+    assert.equal(await marks('correct').count(), first.target.length);
+    assert.equal(await typingStatus.textContent(), 'Quote matched.');
     await page.clock.runFor(10_000);
     assert.match(await countdown.textContent(), /^(19|20)s$/);
     assert.ok(await unlock.isDisabled(), 'a correct answer cannot skip the countdown');
-    if (inspect) await inspect(page, options);
+    if (inspect) {
+      await answer.fill(`${first.target.slice(0, 12)}?`);
+      await inspect(page, options);
+    }
 
     await page.reload();
     const second = await displayed();
     assert.notEqual(second.text, first.text, 'reload draws the next personal quote');
     assert.match(await countdown.textContent(), /^(29|30)s$/, 'reload restarts the full countdown');
     assert.equal(await answer.inputValue(), '');
-    await answer.fill('incorrect');
+    await answer.fill(second.target.split(' ')[0]);
     await page.clock.fastForward(30_100);
     assert.equal(await countdown.textContent(), 'Ready');
-    assert.ok(await unlock.isDisabled(), 'a wrong answer remains locked when the timer finishes');
-    await answer.fill(` ${second.answer.toUpperCase()} `);
-    assert.ok(await unlock.isEnabled(), 'a correct answer and a finished countdown unlock the button');
+    assert.ok(await unlock.isDisabled(), 'one correct word cannot unlock the ceremony');
+    await answer.fill(second.target.slice(0, -1));
+    assert.ok(await unlock.isDisabled(), 'missing punctuation still blocks Quick Override');
+    await answer.fill(second.target.toLowerCase());
+    assert.ok(await unlock.isDisabled(), 'the whole quote must also match capitalization');
+    await answer.fill(second.target);
+    assert.ok(await unlock.isEnabled(), 'the full quote and a finished countdown unlock the button');
+    await answer.fill(`${second.target} `);
+    assert.ok(await unlock.isDisabled(), 'extra characters block Quick Override');
     await answer.fill('');
     assert.ok(await unlock.isDisabled(), 'changing the answer locks the button again');
 
@@ -155,7 +172,7 @@ export async function verifyCeremonyPersonalization(launch = launchBrave, inspec
     await page.reload();
     await answer.waitFor();
     assert.doesNotMatch(await quote.locator('cite').textContent(), /Personal quote/, 'removing the last quote restores the bundled deck');
-    console.log('verify-ceremony-personalization: passed deck modes, reload, countdown and word gates, quote editor, and recent passes');
+    console.log('verify-ceremony-personalization: passed deck modes, reload, full-quote typing and countdown, quote editor, and recent passes');
   } finally {
     await ctx.close();
   }

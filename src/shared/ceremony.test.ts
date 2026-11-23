@@ -1,33 +1,39 @@
 import { describe, expect, it } from 'vitest';
-import { countRecentPasses, createQuoteChallenge, effectiveQuotes, isQuoteAnswerCorrect } from './ceremony';
+import { countRecentPasses, effectiveQuotes, quoteCharacters, quoteTypingProgress, typingQuoteText } from './ceremony';
 import { QUOTES } from './quotes';
 import { emptyRecord, freshState, loadHistory, loadState, memoryKV } from './storage';
 import { DEFAULT_SETTINGS, type History } from './types';
 
-describe('quote challenge', () => {
-  it('chooses the longest word and keeps the rest of the quote', () => {
-    expect(createQuoteChallenge({ text: 'Use ____ for unusual emphasis!', author: 'Example' })).toEqual({
-      text: 'Use ____ for unusual ____!', author: 'Example', expectedWord: 'emphasis', blankIndex: 21,
+describe('quote typing', () => {
+  it('displays keyboard-friendly punctuation and a single space between words', () => {
+    expect(typingQuoteText('  “Don’t wait”—\n start…  ')).toBe('"Don\'t wait"- start...');
+  });
+
+  it('marks matching characters, typos, and the next character', () => {
+    const quote = Array.from('Go now.');
+    expect(quoteTypingProgress(quote, 'Gx')).toEqual({
+      marks: ['correct', 'incorrect', 'next', 'pending', 'pending', 'pending', 'pending'],
+      hasExtra: false, hasErrors: true, complete: false,
     });
+    expect(quoteTypingProgress(quote, 'Go')).toMatchObject({ hasErrors: false, complete: false });
   });
 
-  it('uses the first word in a tie, including short quotes, and strips punctuation from the answer', () => {
-    expect(createQuoteChallenge({ text: 'Go on.', author: '' })).toMatchObject({ text: '____ on.', expectedWord: 'Go' });
-    expect(createQuoteChallenge({ text: '“Don’t wait.”', author: '' })).toMatchObject({
-      text: '“____ wait.”', expectedWord: 'Dont',
-    });
-    expect(createQuoteChallenge({ text: '...💡', author: '' })).toBeUndefined();
+  it('requires the full quote, including capitalization, spaces, and punctuation', () => {
+    const quote = Array.from('Go now.');
+    for (const input of ['now', 'Go now', 'go now.', 'Go  now.', 'Go now. ']) {
+      expect(quoteTypingProgress(quote, input).complete).toBe(false);
+    }
+    expect(quoteTypingProgress(quote, 'Go now. ')).toMatchObject({ hasExtra: true, hasErrors: false });
+    expect(quoteTypingProgress(quote, 'Go now.').complete).toBe(true);
   });
 
-  it('creates a challenge for every bundled quote', () => {
-    expect(QUOTES.every((quote) => createQuoteChallenge(quote)?.expectedWord)).toBe(true);
-  });
-
-  it('ignores case and surrounding whitespace without accepting a partial word or empty answer', () => {
-    expect(isQuoteAnswerCorrect('  FoCUS \n', 'focus')).toBe(true);
-    expect(isQuoteAnswerCorrect('FOC', 'focus')).toBe(false);
-    expect(isQuoteAnswerCorrect('focus!', 'focus')).toBe(false);
-    expect(isQuoteAnswerCorrect('', '')).toBe(false);
+  it('accepts equivalent Unicode input and every bundled quote is typeable', () => {
+    expect(quoteTypingProgress(Array.from('Café...'), 'Cafe\u0301…').complete).toBe(true);
+    expect(quoteTypingProgress(quoteCharacters('Go 👩‍💻'), 'Go 👩‍💻').marks).toHaveLength(4);
+    expect(QUOTES.every(({ text }) => {
+      const displayed = typingQuoteText(text);
+      return quoteTypingProgress(quoteCharacters(displayed), displayed).complete;
+    })).toBe(true);
   });
 });
 

@@ -24,6 +24,10 @@
 
 - [x] 5.1 Extend `src/shared/backup.ts` envelope with a `userQuotes` section: export always; import with `{ quotes: [], ownOnly: false }` when absent; unit-test round-trip and missing-section default; verify `npm test` passes
 
+## 6. Validation feedback
+
+- [x] 6.1 Replace the missing-word task with typing the full visible quote. Highlight correct characters and typos as the user types, and require an exact match and the elapsed countdown before enabling Quick Override. Verify corrections, punctuation, and reload in the browser.
+
 ## Workflow follow-up
 
 - Work-in-progress commits carry no version bump; `npm run build` after each task group keeps `dist/` current.

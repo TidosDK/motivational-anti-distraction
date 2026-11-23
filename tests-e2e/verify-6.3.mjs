@@ -65,7 +65,7 @@ assert.ok(tab.url().includes('interstitial.html?s=example.com'));
 await tab.waitForSelector('#ceremony:not([hidden])');
 assert.ok((await tab.textContent('#passes-left')).includes('1 of 1'));
 
-await tab.getByRole('textbox', { name: 'Missing word' }).fill('concentration');
+await tab.getByRole('textbox', { name: 'Type the quote' }).fill('Protect your concentration.');
 await tab.waitForFunction(() => !document.querySelector('#override').disabled, null, { timeout: 40_000 });
 
 await tab.click('#override');

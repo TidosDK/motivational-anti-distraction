@@ -10,11 +10,15 @@
       <h1 id="headline">Blocked for today</h1>
       <p id="sub"></p>
 
-      <blockquote id="quote" aria-live="polite"></blockquote>
+      <blockquote id="quote"></blockquote>
       <p id="recent-passes" class="muted" hidden></p>
 
       <form id="ceremony" hidden>
-        <p id="quote-instructions" class="muted">Type the missing word without punctuation.</p>
+        <label for="quote-answer">Type the quote</label>
+        <p id="quote-instructions" class="muted">Match the capitalization and punctuation shown above.</p>
+        <textarea id="quote-answer" rows="2" autocomplete="off" autocapitalize="off" spellcheck="false"
+          aria-describedby="quote-instructions quote-target"></textarea>
+        <p id="typing-status" class="muted" role="status"></p>
         <div class="override-row">
           <button id="override" type="submit" disabled>Quick Override</button>
           <div class="timer" aria-hidden="true"><div id="timer-bar"></div></div>

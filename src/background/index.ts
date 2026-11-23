@@ -4,7 +4,7 @@ import { chromeKV, accrueForeground, ensureInstallMeta, loadDeck, loadHistory, l
 import { SETTINGS_KEY, STATE_KEY } from '../shared/types';
 import { QUOTES } from '../shared/quotes';
 import { nextQuote } from '../shared/deck';
-import { countRecentPasses, createQuoteChallenge, effectiveQuotes } from '../shared/ceremony';
+import { countRecentPasses, effectiveQuotes } from '../shared/ceremony';
 import { updateActionStatus } from './actionStatus';
 import { computeBlockedDomains, diffRules, regexFilterFor, type RuleSpec } from './enforcement';
 import { applyPassSpend, isPassActive, isSiteExhausted } from '../shared/exhaustion';
@@ -348,7 +348,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
   if (typeof message !== 'object' || message === null || !('type' in message)) return;
-  const msg = message as { type: string; domain?: string; plainQuote?: boolean };
+  const msg = message as { type: string; domain?: string };
 
   if (msg.type === 'nextQuote') {
     void (async () => {
@@ -357,8 +357,7 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
         const deck = await loadDeck(chromeKV);
         const r = nextQuote(deck, quotes.length, Math.random);
         await saveDeck(chromeKV, r.deck);
-        const selected = quotes[r.index];
-        return msg.plainQuote === true ? selected : createQuoteChallenge(selected);
+        return quotes[r.index];
       });
       sendResponse(quote);
     })();

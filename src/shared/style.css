@@ -63,8 +63,14 @@ blockquote {
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
 blockquote cite { display: block; margin-top: 0.6rem; font-style: normal; color: var(--muted); font-size: 1rem; }
-#quote-answer { field-sizing: content; min-width: min(9ch, 100%); max-width: 100%; box-sizing: border-box; font: inherit; padding: 0.05em 0.3em; }
-#quote-instructions { margin: 0; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#quote-preview [data-typing="correct"] { color: var(--within); }
+#quote-preview [data-typing="incorrect"] { color: var(--over); background: color-mix(in srgb, var(--over), transparent 88%); text-decoration: underline; }
+#quote-preview [data-typing="next"] { box-shadow: inset 2px 0 var(--accent); }
+#ceremony > label { margin: 0; font-weight: 600; }
+#quote-instructions { margin: 0.25rem 0 0.55rem; }
+#quote-answer { display: block; box-sizing: border-box; width: 100%; min-height: 4.5rem; font: inherit; line-height: 1.6; resize: vertical; }
+#typing-status { min-height: 1.3em; margin: 0.35rem 0 0; }
 .override-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 1.25rem; }
 .timer { flex: 1; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
 #timer-bar { height: 100%; width: 0; background: var(--accent); transition: width 0.25s linear; }

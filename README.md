@@ -1,8 +1,8 @@
 # Motivational Anti-Distraction
 
 A Chrome/Brave extension that closes your time-sink sites once you've had
-enough. To open one again, read a quote and fill in its missing word during
-a mandatory 30-second pause.
+enough. To open one again, type the displayed quote during a mandatory
+30-second pause.
 
 ## Features (v1)
 
@@ -26,8 +26,9 @@ a mandatory 30-second pause.
   (default 05:00), so 1 a.m. browsing counts toward the night it started in.
   All counters, passes and stats roll together at that boundary.
 - **The ceremony** — Quick Override unlocks after the 30-second countdown
-  and a correct answer to the quote's missing word. Reloading restarts the
-  countdown and draws the next quote. The ceremony shows how many day-passes
+  and an exact match of the full quote. The quote highlights correct characters
+  and typos as you type. Reloading restarts the countdown and draws the next
+  quote. The ceremony shows how many day-passes
   you used on that site in the last seven usage days when the count is above zero.
 - **Personal quotes** — add quotes under **Ceremony quotes** in Options.
   The deck cycles through each quote once before reshuffling. **Use only my
@@ -125,7 +126,7 @@ session per window, so unfocused windows on other monitors still count; a
 domain shown in several windows charges once). When a site's meter
 crosses its limit or the combined total crosses the budget, a
 `declarativeNetRequest` session rule redirects its main-frame navigations to
-the interstitial page. The interstitial runs the missing-word ceremony with
+the interstitial page. The interstitial runs the full-quote typing ceremony with
 a concurrent 30-second lockout. Quick Override spends a day-pass, and the rule
 for that domain comes down for the pass session (default 10 minutes, capped
 at the day boundary). Expiry is lazy — a pass exempts its site only while its

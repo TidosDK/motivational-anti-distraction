@@ -22,25 +22,24 @@ judgmental or shaming framing.
 ## MODIFIED Requirements
 
 ### Requirement: Unlock ceremony
-The interstitial SHALL show a quote from the effective deck with exactly one
-word blanked. The background SHALL choose the blank and its expected answer.
-A visible countdown of at least 30 seconds SHALL run from the display of the
-quote. Quick Override SHALL stay disabled until the countdown elapses and
-the user types the missing word correctly, ignoring case and whitespace at
-the ends of the answer.
+The interstitial SHALL show the full quote from the effective deck with
+live feedback on correct characters and typos. A visible countdown of at
+least 30 seconds SHALL start when the quote appears. Quick Override SHALL
+stay disabled until the countdown elapses and the full input matches the
+displayed quote, including capitalization, punctuation, and spacing.
 
 #### Scenario: Button locked during countdown
-- **WHEN** the interstitial has been displayed for 10 seconds and the blanked
-  word is already typed correctly
+- **WHEN** the interstitial has been displayed for 10 seconds and the full
+  quote is already typed correctly
 - **THEN** the Quick Override button remains disabled
 
 #### Scenario: Button locked without full checklist
-- **WHEN** the countdown has fully elapsed but the blanked word is not yet
-  filled in correctly
+- **WHEN** the countdown has fully elapsed but the typed quote is incomplete
+  or contains an error
 - **THEN** the Quick Override button remains disabled
 
 #### Scenario: Override unlocks
-- **WHEN** the countdown has fully elapsed and the blanked word is typed
+- **WHEN** the countdown has fully elapsed and the full quote is typed
   correctly and the user activates Quick Override
 - **THEN** a day-pass is spent and the blocked site becomes accessible
 
@@ -49,11 +48,13 @@ the ends of the answer.
 - **THEN** the countdown starts again from the full duration (and the reload
   draws the next quote from the deck, like any fresh ceremony load)
 
-#### Scenario: Blank a meaningful word
-- **WHEN** a ceremony displays a quote
-- **THEN** exactly one word of that quote is blanked (the longest word,
-  preferring words of at least 4 characters) and the rest of the quote
-  remains readable
+#### Scenario: Typing feedback follows corrections
+- **WHEN** the user types a wrong character and corrects it
+- **THEN** the quote marks that character as a typo and clears the mark after correction
+
+#### Scenario: Type punctuation on a standard keyboard
+- **WHEN** the source quote contains curly quotation marks, a long dash, or an ellipsis
+- **THEN** the prompt displays keyboard-friendly punctuation that can be typed as shown
 
 ### Requirement: No-repeat quote deck
 The effective deck SHALL mix bundled and user-added quotes. The user SHALL
@@ -89,9 +90,7 @@ Quote selection MUST work offline.
 ## REMOVED Requirements
 
 ### Requirement: Fixed confession checklist
-**Reason**: replaced by the always-active fill-in-the-blank task. Passive
-checkbox ticking invited muscle-memory overrides; typing a word from the
-displayed quote forces reading it. Ruled out deliberately: keeping the
-checklist alongside the blank was considered and rejected.
+**Reason**: typing the displayed quote gives the user an active task during
+the ceremony.
 **Migration**: none — the checklist stored no user data; the day-pass
 economy and countdown rules are untouched.

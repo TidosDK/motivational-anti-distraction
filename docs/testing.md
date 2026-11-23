@@ -12,7 +12,7 @@ node tests-e2e/verify-4.2.mjs   # each verification, in order (they are slow:
 node tests-e2e/verify-5.1.mjs   # they observe real alarms/ceremony timers)
 node tests-e2e/verify-5.2.mjs
 node tests-e2e/verify-5.3.mjs
-node tests-e2e/verify-ceremony-personalization.mjs # quote editor, countdown, word gate, and recent passes
+node tests-e2e/verify-ceremony-personalization.mjs # quote editor, countdown, full-quote typing, and recent passes
 node tests-e2e/verify-6.3.mjs
 node tests-e2e/verify-7.1.mjs
 node tests-e2e/verify-9.3.mjs   # ~2 min: waits for a real 1-min pass session
@@ -39,7 +39,7 @@ engine family.
 | verify-5.1 | exhausted site → dNR rule → real navigation redirected (incl. subdomain); budget recovery removes rule | PASS |
 | verify-5.2 | pass spend unblocks only that site; day roll expires the pass; re-exhausted site blocks again | PASS |
 | verify-5.3 | day-roll alarm scheduled at reset boundary; firing it re-syncs rules and reschedules | PASS |
-| verify-ceremony-personalization | quote editor, both deck modes, fallback, countdown restart, correct-word gate, paste prevention, and recent passes | PASS (v0.7.0) |
+| verify-ceremony-personalization | quote editor, both deck modes, fallback, countdown restart, full-quote typing with typo feedback, paste prevention, and recent passes | PASS (v0.7.1) |
 | verify-6.3 | end-to-end: ceremony → override → navigates to real site; timed pass spent, override logged, rule removed; hard-block display when no passes | PASS |
 | verify-7.1 | stats page from seeded fixtures: today's meters/limits/passes, badge, override timestamps, history rows, live re-render | PASS |
 | verify-9.3 | timed day-pass: spend unblocks, in-session nav does not double-spend, session lapse auto-reblocks (pass-expire alarm), next navigation re-blocks and next pass is offered | PASS |
@@ -72,12 +72,14 @@ A site list you actually use makes the limits feel real; `example.com` /
    climb at real time even though its window never has focus. Minimize that
    window: counting stops; restore: it resumes.
 4. **Ceremony** — add two quotes in Options and enable **Use only my quotes**.
-   Exhaust a site's budget and check that a personal quote appears with one
-   focused blank. Type the missing word before time runs out to check that
-   Quick Override stays disabled. Reload and check for the next quote and a
-   fresh 30-second countdown. Enter a wrong word and wait out the timer, then
-   correct it to unlock the button. Check the recent-pass count after spending
-   a pass and reopening the ceremony. Remove both personal quotes and check
+   Exhaust a site's budget and check that the whole personal quote appears
+   and the typing field has focus. Check that an incorrect character is
+   highlighted and correcting it clears the highlight. Finish the full quote
+   before time runs out to check that Quick Override stays disabled. Reload
+   for the next quote and a fresh 30-second countdown. Let the timer finish
+   with part of the quote left, then finish it to unlock the button. Check
+   the recent-pass count after spending a pass and reopening the ceremony.
+   Remove both personal quotes and check
    that a bundled quote appears with own-quotes-only still enabled.
 5. **Day-pass scope** — with two exhausted sites, override one; the other
    stays blocked. The unblocked one loads for the pass session (below).

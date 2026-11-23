@@ -12,8 +12,8 @@ Countdown behavior (page-local, reload restarts) is spec-pinned and stays.
 ## Goals / Non-Goals
 
 **Goals:**
-- One ceremony shape, always: quote with one blanked word + 30 s countdown;
-  unlock requires the correct word.
+- Show the full quote and a 30-second countdown. Unlock requires typing the
+  full quote correctly.
 - User quotes join the deck with zero changes to `deck.ts` mechanics.
 - Friction, not security: page-side validation is the same trust level the
   checkboxes had (DevTools could always tick them).
@@ -28,17 +28,13 @@ Countdown behavior (page-local, reload restarts) is spec-pinned and stays.
 
 ## Decisions
 
-### D1: Worker picks the blank; page validates
-The `nextQuote` response is extended to
-`{ text: string /* quote with the word replaced by "____" */, expectedWord:
-string, author: string, blankIndex: number }`. The index tells the page which
-placeholder to replace when the quote already contains underscores. The
-worker blanks the first longest word, preferring words of at least four
-characters. It strips punctuation from the answer. The page compares trimmed, lower-cased
-input. Alternatives: page-side blanking (rejected — makes the choice a pure
-view concern that could drift from what the deck served); server-side
-validation (rejected — ceremony friction, not a security boundary, and the
-pass spend is already page-initiated).
+### D1: The page checks the full quote as the user types
+The worker returns the quote text and author. The typing prompt displays
+keyboard-friendly equivalents for smart apostrophes, quotation marks, dashes,
+and ellipses. It displays stored whitespace as single spaces. The page
+marks each typed position as correct or incorrect and indicates the next
+character. Capitalization, punctuation, and spacing must match the visible
+text. Paste and drop are blocked in the typing field.
 
 ### D2: Draw-per-load, no pinning
 `nextQuote` keeps advancing the deck on every interstitial load, exactly as
@@ -67,8 +63,8 @@ storage growth.
 Delete the confession-checkbox markup/handlers from the interstitial and the
 bundled confession list constant; the `override-ritual` delta REMOVES the
 requirement. Note: the delta's MODIFIED "Unlock ceremony" keeps the legacy
-scenario name "Button locked without full checklist" (body rewritten to the
-blank-word gate) because the OpenSpec validator refuses MODIFIED blocks
+scenario name "Button locked without full checklist" (body rewritten for
+the full quote) because the OpenSpec validator refuses MODIFIED blocks
 that drop scenario names — cosmetic debt only.
 
 ### D6: Backup envelope extension
@@ -78,13 +74,8 @@ ownOnly: false }` when absent (the documented exact-match exception).
 
 ## Risks / Trade-offs
 
-- [The expected word is visible in the page/DevTools] → Accepted; identical
-  trust model to ticking checkboxes — the ceremony is friction, not a
-  security boundary.
 - [One task type can still habituate] → Accepted; it requires reading the
   quote, which the checklist did not.
 - [Reload-spam burns deck entries] → Accepted; each reload costs the full
   countdown and shows a different quote — no advantage gained, no state
   corrupted.
-- [Very short quotes (all words < 4 chars)] → Longest word is blanked
-  regardless; no fallback task exists.
