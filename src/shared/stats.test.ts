@@ -219,18 +219,20 @@ describe('computeBadgeStatus', () => {
   const now = new Date(2026, 9, 30, 20).getTime();
   const dayStart = usageDayStart(now, 5);
   const state = { ...freshState(dayStart), perSiteSeconds: { 'youtube.com': 60 } };
+  const longLimitSite = { domain: 'youtube.com', limitMin: 720, passes: 1 };
+  const limitedSettings = settings({ sites: [longLimitSite] });
 
   it.each([
     [1, '0', true],
-    [2, '1', false],
-    [48, '47', false],
-    [100, '99', false],
+    [2, '1m', false],
+    [18, '17m', false],
+    [100, '99m', false],
     [101, '1h', false],
     [181, '3h', false],
     [600, '9h', false],
     [601, '9h+', false],
   ])('formats a %i-minute budget with one minute used', (combinedBudgetMin, badgeText, overBudget) => {
-    expect(computeBadgeStatus(settings({ combinedBudgetMin }), state, now)).toEqual({
+    expect(computeBadgeStatus({ ...limitedSettings, combinedBudgetMin }, state, now, longLimitSite)).toEqual({
       badgeText,
       overBudget,
     });
@@ -238,22 +240,22 @@ describe('computeBadgeStatus', () => {
 
   it('reserves zero for exhaustion even with only a second remaining', () => {
     const almostSpent = { ...state, perSiteSeconds: { 'youtube.com': 119 } };
-    expect(computeBadgeStatus(settings({ combinedBudgetMin: 2 }), almostSpent, now)).toEqual({
-      badgeText: '1',
+    expect(computeBadgeStatus({ ...limitedSettings, combinedBudgetMin: 2 }, almostSpent, now, longLimitSite)).toEqual({
+      badgeText: '1m',
       overBudget: false,
     });
-    expect(computeBadgeStatus(settings({ combinedBudgetMin: 1 }), almostSpent, now)).toEqual({
+    expect(computeBadgeStatus({ ...limitedSettings, combinedBudgetMin: 1 }, almostSpent, now, longLimitSite)).toEqual({
       badgeText: '0',
       overBudget: true,
     });
   });
 
   it.each([
-    [100, '99'],
+    [100, '99m'],
     [600, '9h'],
   ])('keeps the lower format just below %i minutes remaining', (combinedBudgetMin, badgeText) => {
     const stateWithOneSecondUsed = { ...state, perSiteSeconds: { 'youtube.com': 1 } };
-    expect(computeBadgeStatus(settings({ combinedBudgetMin }), stateWithOneSecondUsed, now)).toEqual({
+    expect(computeBadgeStatus({ ...limitedSettings, combinedBudgetMin }, stateWithOneSecondUsed, now, longLimitSite)).toEqual({
       badgeText,
       overBudget: false,
     });
@@ -266,10 +268,17 @@ describe('computeBadgeStatus', () => {
     });
   });
 
+  it('hides the badge on an unrelated tab even when configured sites have run out of time', () => {
+    expect(computeBadgeStatus({ ...limitedSettings, combinedBudgetMin: 1 }, state, now)).toEqual({
+      badgeText: '',
+      overBudget: false,
+    });
+  });
+
   it('shows the fresh budget after a usage-day rollover', () => {
     const tomorrow = nextReset(now, 5);
-    expect(computeBadgeStatus(settings({ combinedBudgetMin: 1 }), state, tomorrow)).toEqual({
-      badgeText: '1',
+    expect(computeBadgeStatus({ ...limitedSettings, combinedBudgetMin: 1 }, state, tomorrow, longLimitSite)).toEqual({
+      badgeText: '1m',
       overBudget: false,
     });
   });
@@ -277,14 +286,14 @@ describe('computeBadgeStatus', () => {
   it('uses the tighter of the site limit and the combined budget', () => {
     const site = { domain: 'youtube.com', limitMin: 12, passes: 1 };
     const used = { ...state, perSiteSeconds: { 'youtube.com': 5 * 60, 'instagram.com': 10 * 60 } };
-    expect(computeBadgeStatus(settings(), used, now, site)).toEqual({ badgeText: '7', overBudget: false });
+    expect(computeBadgeStatus(settings(), used, now, site)).toEqual({ badgeText: '7m', overBudget: false });
     expect(computeBadgeStatus(settings({ combinedBudgetMin: 18 }), used, now, site))
-      .toEqual({ badgeText: '3', overBudget: false });
+      .toEqual({ badgeText: '3m', overBudget: false });
     expect(computeBadgeStatus(settings({ combinedBudgetMin: 15 }), used, now, site))
       .toEqual({ badgeText: '0', overBudget: true });
     expect(computeBadgeStatus(settings(), used, now, { ...site, limitMin: 5 }))
       .toEqual({ badgeText: '0', overBudget: true });
     expect(computeBadgeStatus(settings(), used, now, { ...site, limitMin: null }))
-      .toEqual({ badgeText: '1h', overBudget: false });
+      .toEqual({ badgeText: '', overBudget: false });
   });
 });

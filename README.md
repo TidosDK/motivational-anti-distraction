@@ -45,9 +45,9 @@ The friction is the feature.
   logged with timestamps. No passes left ⇒ hard block until the day rolls.
 - **Usage stats** — today's per-site meters vs limits, combined budget bar,
   passes used, override log, and 31 days of history.
-- **Toolbar badge** — see how much time is left on the current site. On a
-  site with a limit, the badge shows whichever budget will run out first.
-  Elsewhere it shows the combined budget. The icon turns red at zero.
+- **Toolbar badge** — on sites with their own daily limit, see whichever
+  budget will run out first. Minutes include an `m` suffix, and the icon
+  turns red at zero. Other tabs show the plain toolbar icon.
 - **Toolbar popup** — click the icon for a glance at the time remaining today
   per site and on the combined budget (live-updating while open), with a
   shortcut to the options page.

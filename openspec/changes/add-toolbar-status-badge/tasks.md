@@ -19,6 +19,8 @@
 - [x] 4.1 Limit text to three characters. Use whole minutes through `99`, whole hours above that, and `9h+` from 10 hours. Verify the long-duration labels on the pinned Brave toolbar.
 - [x] 4.2 Scope the badge to the active tab and show the smaller of site and combined remaining time on a limited site and its blocking page. Verify site exhaustion, tab switches, and fallback to the combined badge in Chromium.
 
+- [x] 4.3 Add the `m` suffix to positive minute values and clear both the badge and red icon on tabs without an individual site limit. Verify the switch away from an exhausted site in Chromium and check `17m` and `99m` on the pinned Brave toolbar.
+
 ## Workflow follow-up
 
 - Work-in-progress commits carry no version bump; `npm run build` after each task group keeps `dist/` current.

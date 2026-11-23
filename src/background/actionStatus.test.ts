@@ -14,13 +14,18 @@ it('sets the badge and restores the normal icon when the budget recovers or site
   };
   vi.stubGlobal('chrome', {
     action,
-    tabs: { query: vi.fn().mockResolvedValue([]) },
+    tabs: {
+      query: vi.fn().mockResolvedValue([
+        { id: 7, url: 'https://example.com/' },
+        { id: 8, url: 'https://example.org/' },
+      ]),
+    },
     runtime: { getURL: (path: string) => `chrome-extension://test/${path}` },
   });
 
   const settings = {
     ...DEFAULT_SETTINGS,
-    sites: [{ domain: 'example.com', limitMin: null, passes: 1 }],
+    sites: [{ domain: 'example.com', limitMin: 90, passes: 1 }],
     combinedBudgetMin: 60,
   };
   const now = new Date(2026, 9, 30, 20).getTime();
@@ -30,21 +35,20 @@ it('sets the badge and restores the normal icon when the budget recovers or site
   };
 
   await updateActionStatus(settings, state, now);
-  await updateActionStatus({ ...settings, combinedBudgetMin: 210 }, state, now);
-  await updateActionStatus({ ...settings, combinedBudgetMin: 660 }, state, now);
-  await updateActionStatus({ ...settings, combinedBudgetMin: 107 }, state, now);
-  await updateActionStatus(settings, state, now);
+  await updateActionStatus({ ...settings, combinedBudgetMin: 77 }, state, now);
   await updateActionStatus({ ...settings, sites: [] }, state, now);
 
-  expect(action.setBadgeText.mock.calls.map(([details]) => details.text)).toEqual([
-    '0', '2h', '9h+', '47', '0', '',
+  const badgeWrites = action.setBadgeText.mock.calls.map(([details]) => details);
+  expect(badgeWrites.filter(({ tabId }) => tabId === 7)).toEqual([
+    { tabId: 7, text: '0' }, { tabId: 7, text: '17m' }, { tabId: 7, text: '' },
   ]);
-  expect(action.setBadgeBackgroundColor).toHaveBeenNthCalledWith(1, { color: '#b32124' });
-  expect(action.setBadgeBackgroundColor).toHaveBeenLastCalledWith({ color: [0, 0, 0, 0] });
+  expect(badgeWrites.filter(({ tabId }) => tabId !== 7).map(({ text }) => text))
+    .toEqual(['', '', '', '', '', '']);
+  expect(action.setBadgeBackgroundColor).toHaveBeenCalledWith({ tabId: 7, color: '#b32124' });
+  expect(action.setBadgeBackgroundColor).toHaveBeenCalledWith({ tabId: 7, color: [0, 0, 0, 0] });
   const normalIcons = { 16: 'icons/icon-16.png', 32: 'icons/icon-32.png', 48: 'icons/icon-48.png', 128: 'icons/icon-128.png' };
   const redIcons = { 16: 'icons/icon-16-red.png', 32: 'icons/icon-32-red.png', 48: 'icons/icon-48-red.png', 128: 'icons/icon-128-red.png' };
-  expect(action.setIcon).toHaveBeenNthCalledWith(1, { path: redIcons });
-  expect(action.setIcon).toHaveBeenNthCalledWith(2, { path: normalIcons });
-  expect(action.setIcon).toHaveBeenNthCalledWith(5, { path: redIcons });
-  expect(action.setIcon).toHaveBeenLastCalledWith({ path: normalIcons });
+  expect(action.setIcon).toHaveBeenCalledWith({ tabId: 7, path: redIcons });
+  expect(action.setIcon).toHaveBeenCalledWith({ tabId: 7, path: normalIcons });
+  expect(action.setIcon).toHaveBeenCalledWith({ tabId: 8, path: normalIcons });
 });

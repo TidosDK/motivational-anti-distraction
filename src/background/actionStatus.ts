@@ -31,15 +31,13 @@ async function setActionStatus(
 export async function updateActionStatus(settings: Settings, state: DayState | undefined, now: number): Promise<void> {
   const tabs = await chrome.tabs.query({ active: true });
   const interstitial = chrome.runtime.getURL('interstitial.html');
-  const combined = computeBadgeStatus(settings, state, now);
-  const updates = [setActionStatus(combined)];
+  const updates = [setActionStatus(computeBadgeStatus(settings, state, now))];
 
   // The action API scopes overrides to a tab, so each window can show its own budget.
   for (const tab of tabs) {
     if (tab.id == null) continue;
     const site = siteForTab(tab.url, settings, interstitial);
-    const status = site?.limitMin != null ? computeBadgeStatus(settings, state, now, site) : combined;
-    updates.push(setActionStatus(status, tab.id));
+    updates.push(setActionStatus(computeBadgeStatus(settings, state, now, site), tab.id));
   }
 
   // A tab may close during a refresh. Wait for the remaining updates before the next snapshot.

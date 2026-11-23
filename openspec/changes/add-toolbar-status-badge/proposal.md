@@ -5,19 +5,18 @@
 The popup already answers "how much time do I have left?", but only when
 you click — the glanceable moment on the toolbar is empty. Both StayFocusd
 and LeechBlock show remaining time on the icon; users of blocker extensions
-expect it. A badge with the combined budget's remaining minutes (and a red
-icon when over budget) puts the budget in front of you at exactly the
-glance where temptation starts, at zero interaction cost.
+expect it. A badge on sites with their own limit shows remaining time before
+the user needs to open the popup.
 
 ## What Changes
 
-- The toolbar **badge** shows the remaining daily budget for the current tab.
-  A site with a limit shows whichever budget has less time left. Other tabs
-  show the combined budget. Long durations use compact hour values.
+- The toolbar **badge** appears on sites with an individual daily limit and
+  their blocking pages. It shows whichever budget has less time left. Minute
+  values include `m`, and long durations use compact hour values.
 - The icon turns **red** and the badge reads `0` when the displayed budget runs out.
 - Badge and icon update on tab switches, navigation, and browser start, and
   within about a minute of usage, settings changes, or the daily reset.
-- With no blocked sites configured, no badge is shown.
+- Other tabs show an empty badge and the normal icon.
 - No new permissions; the popup, stats, blocking, and ceremony are
   untouched.
 

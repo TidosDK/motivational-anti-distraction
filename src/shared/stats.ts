@@ -145,19 +145,17 @@ export function computeBadgeStatus(
   now: number,
   site?: SiteSetting,
 ): { badgeText: string; overBudget: boolean } {
-  if (settings.sites.length === 0) return { badgeText: '', overBudget: false };
+  if (site?.limitMin == null) return { badgeText: '', overBudget: false };
 
   const today = state?.dayStart === usageDayStart(now, settings.resetHour) ? state : undefined;
-  let remainingSec = remainingSeconds(settings.combinedBudgetMin, today ? combinedTotalSeconds(today) : 0);
-  if (site?.limitMin != null) {
-    const siteUsedSec = today?.perSiteSeconds[site.domain] ?? 0;
-    remainingSec = Math.min(remainingSec, remainingSeconds(site.limitMin, siteUsedSec));
-  }
+  const combinedRemaining = remainingSeconds(settings.combinedBudgetMin, today ? combinedTotalSeconds(today) : 0);
+  const siteRemaining = remainingSeconds(site.limitMin, today?.perSiteSeconds[site.domain] ?? 0);
+  const remainingSec = Math.min(combinedRemaining, siteRemaining);
   if (remainingSec === 0) return { badgeText: '0', overBudget: true };
 
   // Show whole minutes remaining and reserve zero for an exhausted budget.
   const minutes = Math.max(1, Math.floor(remainingSec / 60));
-  if (minutes <= 99) return { badgeText: String(minutes), overBudget: false };
+  if (minutes <= 99) return { badgeText: `${minutes}m`, overBudget: false };
   if (minutes >= 600) return { badgeText: '9h+', overBudget: false };
 
   const hours = Math.floor(minutes / 60);

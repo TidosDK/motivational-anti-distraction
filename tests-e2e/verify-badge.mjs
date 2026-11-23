@@ -21,6 +21,7 @@ try {
 
   const page = await ctx.newPage();
   await page.goto(`chrome-extension://${id}/options.html`);
+  const controlTab = { tabId: await page.evaluate(async () => (await chrome.tabs.getCurrent()).id) };
   const seed = (values) => page.evaluate((values) => chrome.storage.local.set(values), values);
   const readRules = () => page.evaluate(() => chrome.declarativeNetRequest.getDynamicRules());
 
@@ -55,7 +56,7 @@ try {
 
   const settings = {
     version: 1,
-    sites: [{ domain: 'example.com', limitMin: null, passes: 1 }],
+    sites: [{ domain: 'example.com', limitMin: 19, passes: 1 }],
     combinedBudgetMin: 60,
     resetHour,
     passSessionMin: 10,
@@ -68,15 +69,12 @@ try {
     passesUsed: {},
   });
   const red = [179, 33, 36, 255];
+  const transparent = [0, 0, 0, 0];
 
-  await seed({ settings, state: stateWithUsage(13) });
-  await assertStatus('47', red);
-  await seed({ state: stateWithUsage(14) });
-  await assertStatus('46', red);
-  assert.deepEqual(await readRules(), [], 'under-budget usage updates the badge without a rule change');
+  await seed({ settings, state: stateWithUsage(1.25) });
+  await assertStatus('', transparent);
+  await assertStatus('', transparent, '', controlTab);
 
-  const limited = { ...settings, sites: [{ ...settings.sites[0], limitMin: 19 }] };
-  await seed({ settings: limited, state: stateWithUsage(13.25) });
   const site = await ctx.newPage();
   await site.route('https://example.com/**', (route) => route.fulfill({ body: 'Blocked-site fixture' }));
   await site.goto('https://example.com/');
@@ -84,46 +82,54 @@ try {
   const [activeTab] = await page.evaluate(() => chrome.tabs.query({ active: true, lastFocusedWindow: true }));
   assert.equal(activeTab.url, 'https://example.com/');
   const siteTab = { tabId: activeTab.id };
-  await assertStatus('5', red, '', siteTab);
+  await assertStatus('17m', red, '', siteTab);
+  await seed({ state: stateWithUsage(2.25) });
+  await assertStatus('16m', red, '', siteTab);
+  assert.deepEqual(await readRules(), [], 'under-budget usage updates the badge without a rule change');
 
   await page.bringToFront();
   await seed({ state: stateWithUsage(15.25) });
-  await assertStatus('44', red);
+  await assertStatus('', transparent, '', controlTab);
   await site.bringToFront();
-  await assertStatus('3', red, '', siteTab);
+  await assertStatus('3m', red, '', siteTab);
 
   await seed({ state: stateWithUsage(19.25) });
   await assertStatus('0', red, '-red', siteTab);
-  await assertStatus('40', red);
+  await assertStatus('', transparent);
 
   await site.goto('about:blank');
-  await assertStatus('40', red, '', siteTab);
+  await assertStatus('', transparent, '', siteTab);
   await site.goto(`chrome-extension://${id}/interstitial.html?s=example.com`);
   await assertStatus('0', red, '-red', siteTab);
-  await site.close();
 
-  await seed({ settings: { ...settings, combinedBudgetMin: 200 } });
-  await assertStatus('3h', red);
-  await seed({ settings });
+  const longSite = { ...settings, sites: [{ ...settings.sites[0], limitMin: 300 }] };
+  await seed({ settings: { ...longSite, combinedBudgetMin: 200 } });
+  await assertStatus('3h', red, '', siteTab);
 
-  await seed({ state: stateWithUsage(60) });
-  await assertStatus('0', red, '-red');
+  await seed({ settings: longSite, state: stateWithUsage(60.25) });
+  await assertStatus('0', red, '-red', siteTab);
   assert.equal((await readRules()).length, 1, 'an exhausted site is still blocked');
+  await assertStatus('', transparent);
 
-  await seed({ settings: { ...settings, combinedBudgetMin: 90 } });
-  await assertStatus('30', red);
+  await seed({ settings: { ...longSite, combinedBudgetMin: 90 } });
+  await assertStatus('29m', red, '', siteTab);
 
-  await seed({ settings });
-  await assertStatus('0', red, '-red');
+  await seed({ settings: longSite });
+  await assertStatus('0', red, '-red', siteTab);
   await seed({ state: stateWithUsage(60, priorDay) });
-  await assertStatus('60', red);
+  await assertStatus('60m', red, '', siteTab);
   assert.deepEqual(await readRules(), [], 'rollover removes the exhausted rule');
 
+  await site.goto('https://example.com/');
+  await seed({ state: stateWithUsage(0.25) });
+  await assertStatus('59m', red, '', siteTab);
+  await seed({ settings: { ...settings, sites: [{ ...settings.sites[0], limitMin: null }] } });
+  await assertStatus('', transparent, '', siteTab);
   await seed({ settings: { ...settings, sites: [] } });
-  await assertStatus('', [0, 0, 0, 0]);
+  await assertStatus('', transparent, '', siteTab);
   assert.equal(await page.evaluate(() => chrome.action.getPopup({})), `chrome-extension://${id}/popup.html`);
 
-  console.log('verify-badge: passed per-tab and combined budgets, compact text, exhaustion, rollover, and popup');
+  console.log('verify-badge: passed minute labels, hidden badges, exhaustion, rollover, and popup');
 } finally {
   await ctx.close();
 }

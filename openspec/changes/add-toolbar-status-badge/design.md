@@ -29,15 +29,16 @@ expiry, and worker init. Icons are generated parametrically by
 ### D1: Compute a budget for each active tab
 `computeBadgeStatus(settings, state, now, site?)` uses shared remaining-time
 math. For a tab with a site limit, it uses the smaller of site and combined
-remaining time. Match ordinary URLs with the existing domain rules and the
-extension's blocking page with its `s` parameter. Set Chrome action values
+remaining time. Other tabs use an empty badge and the normal icon. Match
+ordinary URLs with the existing domain rules and the extension's blocking
+page with its `s` parameter. Set Chrome action values
 by tab ID so each browser window shows the status for its own active tab.
 
 ### D2: Compact text, three characters max
-Use an empty string for no sites, `0` for exhaustion, and whole minutes
-through `99`. Above that, show whole hours like `3h`, capped at `9h+` from
-10 hours. Show `1` for positive time under one minute. The popup shows the
-exact remaining budget.
+Use an empty string for tabs without an individual limit, `0` for exhaustion,
+and whole minutes through `99m`. Above that, show whole hours like `3h`,
+capped at `9h+` from 10 hours. Show `1m` for positive time under one minute.
+The popup shows the exact remaining budget.
 
 ### D3: Red icon is a pre-rendered PNG set
 `tools/make-icons.mjs` loops an `accent` variant (default orange + red) and
