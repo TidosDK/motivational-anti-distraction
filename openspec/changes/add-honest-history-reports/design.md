@@ -5,10 +5,9 @@
 See proposal.md — Why. History is a `Record<"YYYY-MM-DD", DayRecord>`
 pruned to 31 days (`pruneHistory`, src/shared/storage.ts). Views are built
 by pure functions over storage data (`buildStatsView`, `buildPopupView`)
-and pages re-render on `chrome.storage.onChanged`. The known landmine:
-`loadState()` performs lazy day-rolls and runs concurrently in every
-context (worker, popup, stats), so any mutation-in-loadState pattern
-(incrementing counters) races — this design deliberately adds none.
+and pages re-render on `chrome.storage.onChanged`. Reports read settings,
+current usage, history, and install metadata together under the existing
+storage lock.
 
 ## Goals / Non-Goals
 
@@ -28,9 +27,10 @@ context (worker, popup, stats), so any mutation-in-loadState pattern
 ## Decisions
 
 ### D1: Keep 370 usage days; prune keeps the oldest-out rule
-One constant change in `pruneHistory` (31 → 370). A `DayRecord` is ~200–
-500 bytes; a year is well under 1 MB against the ~10 MB `storage.local`
-quota. No need for the `unlimitedStorage` permission.
+`pruneHistory` keeps the newest 370 recorded days. The report spans the
+oldest retained record through the current usage day, including days with no
+record inside that span. A year of daily records fits within the existing
+storage quota.
 
 ### D2: Derive everything at render; store no new aggregates
 Heatmap cells, streak lengths, and totals are pure projections
@@ -39,16 +39,16 @@ shared/stats.ts). Alternative — incrementing lifetime counters inside
 `loadState` — rejected: multi-context concurrent rolls would double-count,
 and the fix (a serialized fold) adds state that itself needs migration.
 With 370-day retention the "lifetime" figure is honest as a **windowed**
-number (spec: label the window) plus an exact days-since-install.
+number labeled with its date range. Install age is a separate value for the
+current browser profile.
 
 ### D3: `installTs` recorded once, seeded from oldest history
 New tiny storage key (e.g. `meta`). At worker init (post-`ready`), if
 `installTs` is missing it is written once: the **oldest recorded history
 day** when history exists (existing installs get a near-true day count
-instead of "since the update"), else "now" (genuinely fresh installs).
-Read with a tolerant loader; writing happens in the worker only, so the
-multi-context race class does not apply. Key survives history pruning by
-design.
+instead of "since the update"), else "now". The stats page labels ages
+seeded from history as estimates. The worker initializes this key once, and
+it survives history pruning.
 
 ### D4: Streak semantics: inside-budget = within every currently configured
 budget, counted from the first recorded usage day; days with no record
@@ -58,9 +58,9 @@ history — accepted (honesty about method beats fake snapshots), and the
 stats row states "vs current budgets" in its tooltip.
 
 ### D5: Heatmap is a CSS grid, intensity buckets relative to the combined budget
-Five buckets: 0, ≤25%, ≤50%, ≤75%, ≤100%, >100% of the combined budget —
-personal scale, so a palette change means no palette redesign. Native
-`title` attributes carry exact "Sat 15 Nov · 47m" values (plus
+Zero has an empty-colored cell. The five positive bands are ≤25%, ≤50%,
+≤75%, ≤100%, and >100% of the combined budget. Native
+`title` attributes carry the date and measured minutes (plus
 `aria-label`); no chart library (zero-deps policy). Weeks as columns,
 7 rows; horizontally scrollable when full.
 
@@ -69,10 +69,7 @@ personal scale, so a palette change means no palette redesign. Native
 - [Retroactively re-scored streaks after budget edits] → Accepted and
   surfaced in UI wording ("current budgets"); snapshotting budgets per day
   would require history-shape growth for marginal honesty gain.
-- [Users who installed before this change get installTs = update day] →
-  Documented; the day count is then "using since update", which is still
-  truthful for the visible window.
-- [370-day grid is wide] → Accepted; scroll + a "months shown" caption.
+- [370-day grid is wide] → Horizontal scroll, with weekday labels held in view.
 - [Zero-usage days before a user's real start inflate early streaks] →
-  Bounded by first-recorded-day clamping (D4); a user who installs and
-  blocks nothing simply has an honest clean streak.
+  Bounded by the first recorded day (D4). An unused profile starts with a
+  streak of zero.

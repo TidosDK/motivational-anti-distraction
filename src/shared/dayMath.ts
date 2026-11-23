@@ -24,3 +24,15 @@ export function dayKey(dayStartMs: number): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
+
+const DAY_MS = 86_400_000;
+
+/** Count calendar days independently of daylight-saving changes. */
+export function dayIndex(key: string): number {
+  const index = Date.parse(`${key}T00:00:00Z`) / DAY_MS;
+  return Number.isFinite(index) && keyAtDayIndex(index) === key ? index : NaN;
+}
+
+export function keyAtDayIndex(index: number): string {
+  return new Date(index * DAY_MS).toISOString().slice(0, 10);
+}

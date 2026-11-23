@@ -1,6 +1,6 @@
 import { nextReset } from '../shared/dayMath';
 import { domainMatches, hostFromUrl } from '../shared/domains';
-import { chromeKV, accrueForeground, loadDeck, loadSessions, loadSettings, loadState, loadUsageSnapshot, readStoredState, recordOverride, saveDeck, saveSessions, saveState, withStorageLock } from '../shared/storage';
+import { chromeKV, accrueForeground, ensureInstallMeta, loadDeck, loadSessions, loadSettings, loadState, loadUsageSnapshot, readStoredState, recordOverride, saveDeck, saveSessions, saveState, withStorageLock } from '../shared/storage';
 import { SETTINGS_KEY, STATE_KEY } from '../shared/types';
 import { QUOTES } from '../shared/quotes';
 import { nextQuote } from '../shared/deck';
@@ -489,3 +489,5 @@ chrome.runtime.onStartup.addListener(() => {
  * exists at the instant a dormant worker wakes up.
  */
 const ready = init().catch((err) => console.error('init failed', err));
+void ready.then(() => withStorageLock(() => ensureInstallMeta(chromeKV, Date.now())))
+  .catch((err) => console.error('install metadata init failed', err));

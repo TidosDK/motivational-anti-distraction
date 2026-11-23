@@ -75,7 +75,7 @@ assert.ok(body.includes('1h 51m of 120m'), 'combined budget row missing');
 assert.ok(body.includes('Day-passes used today'), 'today overrides section missing');
 assert.ok(/youtube\.com — \d{1,2}:\d{2}/.test(body), 'override timestamp missing');
 assert.ok(body.includes('Recent days'), 'history section missing');
-assert.ok(!body.includes(todayKey), 'today leaked into history list');
+assert.ok(!(await page.locator('.history-date').allTextContents()).includes(todayKey), 'today leaked into history list');
 // Closed days newest-first with totals, per-site detail and pass counts.
 assert.ok(body.includes(yesterdayKey) && body.includes(twoDaysAgoKey), 'history day keys missing');
 assert.ok(body.includes('1 pass(es) used'), 'history override count missing');

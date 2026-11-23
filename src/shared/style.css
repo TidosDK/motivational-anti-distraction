@@ -83,6 +83,56 @@ ul.overrides { margin: 0.5rem 0 0; padding-left: 1.25rem; color: var(--muted); f
 .history-total { font-variant-numeric: tabular-nums; }
 .history-detail { min-width: 0; overflow-wrap: anywhere; }
 .history-overrides { color: var(--accent); font-size: 0.85rem; }
+.heatmap-scroll { overflow-x: auto; padding-bottom: 0.5rem; }
+.heatmap-grid {
+  display: grid;
+  --heatmap-rows: 1.25rem repeat(7, 0.75rem);
+  grid-template-columns: 2rem repeat(var(--weeks), 0.75rem);
+  grid-template-rows: var(--heatmap-rows);
+  gap: 0.2rem;
+  width: max-content;
+}
+.heatmap-month, .heatmap-weekday { color: var(--muted); font-size: 0.7rem; line-height: 1; }
+.heatmap-month { grid-row: 1; align-self: center; white-space: nowrap; }
+.heatmap-weekdays {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  grid-column: 1;
+  grid-row: 1 / -1;
+  display: grid;
+  grid-template-rows: var(--heatmap-rows);
+  row-gap: 0.2rem;
+  background: var(--bg);
+}
+.heatmap-weekday { align-self: center; }
+.heatmap-cell {
+  display: block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--bg), var(--line) 55%);
+}
+.heatmap-cell:hover { outline: 1px solid var(--muted); outline-offset: 1px; }
+.heatmap-cell[data-bucket="1"] { background: color-mix(in srgb, var(--bg), var(--accent) 24%); }
+.heatmap-cell[data-bucket="2"] { background: color-mix(in srgb, var(--bg), var(--accent) 44%); }
+.heatmap-cell[data-bucket="3"] { background: color-mix(in srgb, var(--bg), var(--accent) 64%); }
+.heatmap-cell[data-bucket="4"] { background: color-mix(in srgb, var(--bg), var(--accent) 83%); }
+.heatmap-cell[data-bucket="5"] { background: var(--accent); }
+.heatmap-legend { display: flex; justify-content: end; align-items: center; gap: 0.2rem; margin-top: 0.35rem; }
+.heatmap-legend span:first-of-type { margin-left: 0.2rem; }
+.heatmap-legend span:last-of-type { margin-right: 0.2rem; }
+.history-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+  gap: 1rem;
+  border-top: 1px solid var(--line);
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+.history-metric h3 { font-size: 0.9rem; margin: 0 0 0.4rem; }
+.history-metric p { margin: 0.25rem 0 0; }
+.report-streak, .report-totals { font-size: 1.05rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* Toolbar popup */
 body.popup { width: 320px; }

@@ -1,8 +1,10 @@
-import { dayKey, usageDayStart } from './dayMath';
+import { dayIndex, dayKey, usageDayStart } from './dayMath';
 import {
   DEFAULT_SETTINGS,
   DECK_KEY,
   HISTORY_KEY,
+  HISTORY_RETENTION_DAYS,
+  META_KEY,
   SCHEMA_VERSION,
   SETTINGS_KEY,
   SESSION_KEY,
@@ -11,6 +13,7 @@ import {
   type DayState,
   type DeckState,
   type History,
+  type InstallMeta,
   type Settings,
   type ActiveSession,
   type SessionMap,
@@ -109,6 +112,32 @@ export async function loadHistory(kv: KV): Promise<History> {
   return (await rawGet<History>(kv, HISTORY_KEY)) ?? {};
 }
 
+export async function loadInstallMeta(kv: KV): Promise<InstallMeta | undefined> {
+  const raw = await rawGet<Partial<InstallMeta>>(kv, META_KEY);
+  if (typeof raw?.installTs !== 'number' || !Number.isFinite(new Date(raw.installTs).getTime())) {
+    return undefined;
+  }
+  return raw.estimated === true ? { installTs: raw.installTs, estimated: true } : { installTs: raw.installTs };
+}
+
+/** Called by the worker once it has loaded and rolled existing history. */
+export async function ensureInstallMeta(kv: KV, now: number): Promise<void> {
+  if (await loadInstallMeta(kv)) return;
+
+  const oldest = Object.keys(await loadHistory(kv)).sort().find((key) => {
+    return Number.isFinite(dayIndex(key)) && key <= dayKey(now);
+  });
+  if (oldest) {
+    // Use local time so the recorded date is the same on either side of UTC.
+    const { resetHour } = await loadSettings(kv);
+    const date = new Date(`${oldest}T00:00:00`);
+    date.setHours(resetHour);
+    await kv.set({ [META_KEY]: { installTs: Math.min(date.getTime(), now), estimated: true } satisfies InstallMeta });
+  } else {
+    await kv.set({ [META_KEY]: { installTs: now } satisfies InstallMeta });
+  }
+}
+
 export function saveHistory(kv: KV, history: History): Promise<void> {
   return kv.set({ [HISTORY_KEY]: history });
 }
@@ -126,8 +155,8 @@ function mergeDayRecord(record: DayRecord, state: DayState): DayRecord {
   };
 }
 
-/** Keep the newest `keepDays` days; spec requires retaining at least 30. */
-export function pruneHistory(history: History, keepDays = 31): History {
+/** Keep the newest recorded usage days. */
+export function pruneHistory(history: History, keepDays = HISTORY_RETENTION_DAYS): History {
   const keys = Object.keys(history).sort();
   if (keys.length <= keepDays) return history;
   const out: History = {};

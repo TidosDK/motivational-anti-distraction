@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { usageDayStart } from './dayMath';
+import { dayKey, usageDayStart } from './dayMath';
 import {
   accrueForeground,
   emptyRecord,
+  ensureInstallMeta,
   loadHistory,
+  loadInstallMeta,
   loadSessions,
   loadSettings,
   loadState,
@@ -16,6 +18,7 @@ import {
 import {
   DEFAULT_SETTINGS,
   HISTORY_KEY,
+  META_KEY,
   SESSION_KEY,
   type ActiveSession,
   type DayState,
@@ -144,14 +147,40 @@ describe('recordOverride', () => {
 });
 
 describe('pruneHistory', () => {
-  it('keeps the newest 31 days', () => {
+  it.each([369, 370, 371])('keeps up to 370 recorded days from %i entries', (count) => {
     const history: History = {};
-    for (let i = 1; i <= 40; i++) history[`2026-09-${String(i).padStart(2, '0')}`] = emptyRecord();
+    for (let i = 1; i <= count; i++) history[dayKey(day(i))] = emptyRecord();
     const pruned = pruneHistory(history);
-    expect(Object.keys(pruned)).toHaveLength(31);
-    expect(pruned['2026-09-01']).toBeUndefined();
-    expect(pruned['2026-09-10']).toBeDefined();
-    expect(pruned['2026-09-30']).toBeDefined();
+    expect(Object.keys(pruned)).toHaveLength(Math.min(370, count));
+    expect(Object.keys(pruned)[0]).toBe(dayKey(day(Math.max(1, count - 369))));
+    expect(pruned[dayKey(day(count))]).toBeDefined();
+  });
+});
+
+describe('install metadata', () => {
+  it('records the current time on a fresh profile and leaves it in place', async () => {
+    const kv = memoryKV();
+    await ensureInstallMeta(kv, day(15));
+    await ensureInstallMeta(kv, day(19));
+    expect(await loadInstallMeta(kv)).toEqual({ installTs: day(15) });
+  });
+
+  it('uses the oldest retained local usage day as an estimate for an existing profile', async () => {
+    const kv = memoryKV({ [HISTORY_KEY]: {
+      '2026-10-12': emptyRecord(), '2026-10-05': emptyRecord(), '2026-10-32': emptyRecord(),
+    } });
+    await ensureInstallMeta(kv, day(15));
+    expect(await loadInstallMeta(kv)).toEqual({ installTs: startOf(5), estimated: true });
+    await kv.set({ [HISTORY_KEY]: {} });
+    await ensureInstallMeta(kv, day(19));
+    expect(await loadInstallMeta(kv)).toEqual({ installTs: startOf(5), estimated: true });
+  });
+
+  it('tolerates malformed metadata and initializes it again', async () => {
+    const kv = memoryKV({ [META_KEY]: { installTs: 'bad' } });
+    expect(await loadInstallMeta(kv)).toBeUndefined();
+    await ensureInstallMeta(kv, day(15));
+    expect(await loadInstallMeta(kv)).toEqual({ installTs: day(15) });
   });
 });
 

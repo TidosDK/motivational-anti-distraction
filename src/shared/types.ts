@@ -3,8 +3,15 @@ export const STATE_KEY = 'state';
 export const HISTORY_KEY = 'history';
 export const DECK_KEY = 'deck';
 export const SESSION_KEY = 'activeSession';
+export const META_KEY = 'meta';
 
 export const SCHEMA_VERSION = 1;
+export const HISTORY_RETENTION_DAYS = 370;
+
+export interface InstallMeta {
+  installTs: number;
+  estimated?: true;
+}
 
 export interface SiteSetting {
   /** Normalized bare domain, e.g. "youtube.com" (matches the domain and subdomains). */

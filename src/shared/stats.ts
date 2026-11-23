@@ -1,4 +1,4 @@
-import { dayKey, nextReset, usageDayStart } from './dayMath';
+import { dayIndex, dayKey, keyAtDayIndex, nextReset, usageDayStart } from './dayMath';
 import { combinedTotalSeconds } from './exhaustion';
 import type { DayRecord, DayState, History, OverrideEntry, Settings, SiteSetting } from './types';
 
@@ -110,6 +110,87 @@ export function buildStatsView(
       overrides: todayOverrides.sort((a, b) => b.ts - a.ts),
     },
     history: historyDays,
+  };
+}
+
+export interface HistoryViews {
+  heatmap: Array<{ key: string; minutes: number; bucket: number }>;
+  streaks: { current: number; best: number };
+  totals: {
+    trackedSec: number;
+    overrideCount: number;
+    firstDay: string | null;
+    lastDay: string;
+    dayCount: number;
+  };
+  daysSinceInstall: number | null;
+}
+
+export function buildHistoryViews(
+  history: History,
+  settings: Settings,
+  state: DayState,
+  now: number,
+  installTs?: number,
+): HistoryViews {
+  const todayStart = usageDayStart(now, settings.resetHour);
+  const todayKey = dayKey(todayStart);
+  const today = dayIndex(todayKey);
+  const records = new Map<number, DayRecord>();
+  let first = today;
+  for (const [key, record] of Object.entries(history)) {
+    const index = dayIndex(key);
+    if (!Number.isFinite(index) || index > today) continue;
+    records.set(index, record);
+    first = Math.min(first, index);
+  }
+
+  if (state.dayStart === todayStart && Object.keys(state.perSiteSeconds).length > 0) {
+    const stored = records.get(today);
+    const perSite = { ...stored?.perSite };
+    for (const [domain, sec] of Object.entries(state.perSiteSeconds)) {
+      perSite[domain] = (perSite[domain] ?? 0) + sec;
+    }
+    records.set(today, {
+      perSite,
+      totalSec: (stored?.totalSec ?? 0) + combinedTotalSeconds(state),
+      overrides: stored?.overrides ?? [],
+    });
+  }
+
+  const dayCount = records.size > 0 ? today - first + 1 : 0;
+  const combinedLimitSec = settings.combinedBudgetMin * 60;
+  const siteLimits = settings.sites.flatMap(({ domain, limitMin }) =>
+    limitMin == null ? [] : [{ domain, limitSec: limitMin * 60 }],
+  );
+  const heatmap: HistoryViews['heatmap'] = [];
+  let trackedSec = 0;
+  let overrideCount = 0;
+  let current = 0;
+  let best = 0;
+
+  for (let offset = 0; offset < dayCount; offset++) {
+    const index = first + offset;
+    const record = records.get(index);
+    const seconds = record?.totalSec ?? 0;
+    const bucket = seconds > 0 ? Math.min(5, Math.ceil(4 * seconds / combinedLimitSec)) : 0;
+    heatmap.push({ key: keyAtDayIndex(index), minutes: seconds / 60, bucket });
+
+    trackedSec += seconds;
+    overrideCount += record?.overrides.length ?? 0;
+    const insideBudget = seconds <= combinedLimitSec && siteLimits.every(({ domain, limitSec }) =>
+      (record?.perSite[domain] ?? 0) <= limitSec,
+    );
+    current = insideBudget ? current + 1 : 0;
+    best = Math.max(best, current);
+  }
+
+  const installDay = installTs === undefined ? NaN : dayIndex(dayKey(usageDayStart(installTs, settings.resetHour)));
+  return {
+    heatmap,
+    streaks: { current, best },
+    totals: { trackedSec, overrideCount, firstDay: heatmap[0]?.key ?? null, lastDay: todayKey, dayCount },
+    daysSinceInstall: Number.isFinite(installDay) ? Math.max(0, today - installDay) : null,
   };
 }
 

@@ -43,8 +43,10 @@ The friction is the feature.
   time. A pass is never double-spent: while a session is open, the site is
   simply accessible. Sessions are cut short by the day reset. Spent passes are
   logged with timestamps. No passes left ⇒ hard block until the day rolls.
-- **Usage stats** — today's per-site meters vs limits, combined budget bar,
-  passes used, override log, and 31 days of history.
+- **Usage stats** — today's per-site meters, budget, and override log. The
+  calendar shows usage by day, alongside current and best under-budget
+  streaks and totals labeled with their date range. Up to 370 recorded usage
+  days are retained. Streaks use your current budgets.
 - **Toolbar badge** — on sites with their own daily limit, see whichever
   budget will run out first. Minutes include an `m` suffix, and the icon
   turns red at zero. Other tabs show the plain toolbar icon.
