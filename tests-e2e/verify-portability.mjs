@@ -108,6 +108,10 @@ export async function verifyPortability(launch = launchBrave) {
     const page = await ctx.newPage();
     await page.goto(`chrome-extension://${id}/options.html`);
     await page.locator('#export-backup').waitFor();
+    const stats = await ctx.newPage();
+    await stats.goto(`chrome-extension://${id}/stats.html`);
+    await stats.getByText('No closed usage days yet.').waitFor();
+    await page.bringToFront();
     await ctx.setOffline(true);
     const before = await page.evaluate((keys) => chrome.storage.local.get(keys), keys);
     assert.equal(before.settings, undefined, 'restore uses a fresh extension profile');
@@ -132,6 +136,13 @@ export async function verifyPortability(launch = launchBrave) {
     assert.deepEqual(await page.evaluate((keys) => chrome.storage.local.get(keys), keys), data);
     assert.deepEqual(await page.evaluate(() => globalThis.restoreEvents), [['deck', 'history', 'settings', 'state']]);
     assert.equal(await page.locator('#pass-session').inputValue(), '13');
+    const historyDates = ['2026-10-02', '2026-10-01'];
+    await stats.locator('.history-row').first().waitFor();
+    assert.deepEqual(await stats.locator('.history-date').allTextContents(), historyDates);
+    assert.deepEqual(await stats.locator('.history-total').allTextContents(), ['3m', '1m']);
+    await stats.reload();
+    await stats.locator('.history-row').first().waitFor();
+    assert.deepEqual(await stats.locator('.history-date').allTextContents(), historyDates);
 
     const invalid = JSON.parse(files['backup.json'].toString());
     invalid.data.state.dayStart = Date.now() + 2 * 86_400_000;
@@ -163,7 +174,7 @@ export async function verifyPortability(launch = launchBrave) {
   } finally {
     await fresh.ctx.close();
   }
-  console.log('verify-portability: passed offline downloads, atomic restore, rejected files, popup, blocking, active pass, and deck');
+  console.log('verify-portability: passed offline downloads, atomic restore, rejected files, popup, history, blocking, active pass, and deck');
   return files;
 }
 
