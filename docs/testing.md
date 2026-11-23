@@ -152,7 +152,7 @@ Fill this table after running the steps above:
 | 12 | Worker eviction | ✅ | 2026-11-09 confirmed in Brave after the wake-race fix (verify-10.5 covers it in Chromium) |
 | 13 | Remaining-time popup | ✅ | 2026-11-10 user confirmed in Brave: "When I click the extension icon, it shows the menu and the correct information" (incl. orange icon + version display) |
 | 14 | Away vs. hands-off watching | — | v0.3.1 accepted with the manual Brave check waived by the user on 2026-11-23 |
-| 15 | Toolbar badge | ✅ | Brave 157, temporary profile. `17m` and `99m` fit in v0.4.2. Navigating away from an exhausted site restored the plain orange icon. v0.4.1 checks covered `3h`, `9h+`, and the blocking page. |
+| 15 | Toolbar badge | ✅ | Brave 157, temporary profile. `17m` and `99m` fit in v0.4.2. Navigating away from an exhausted site restored the plain orange icon. v0.4.1 checks covered `3h`, `9h+`, and the blocking page. User confirmed v0.4.2 on 2026-11-23. |
 
 ### Findings & triage — 2026-11-17 (user: "watching YouTube, the count is definitely off — way less")
 
