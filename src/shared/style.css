@@ -6,8 +6,8 @@
   --line: #d8d8de;
   --accent: #b3541e;
   --accent-soft: #f2e2d5;
-  --within: #236444;
-  --over: #a12e36;
+  --within: #117776;
+  --over: #b8323b;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 @media (prefers-color-scheme: dark) {
@@ -18,8 +18,8 @@
     --line: #34343d;
     --accent: #e07b45;
     --accent-soft: #3a2c22;
-    --within: #92d2ac;
-    --over: #f0979e;
+    --within: #57c3b7;
+    --over: #f15d5d;
   }
 }
 body { margin: 0; background: var(--bg); color: var(--fg); }
@@ -113,16 +113,6 @@ ul.overrides { margin: 0.5rem 0 0; padding-left: 1.25rem; color: var(--muted); f
   justify-content: space-between;
   gap: 0.65rem;
 }
-.weekly-usage {
-  --within: #2769bc;
-  --over: #6547a6;
-}
-@media (prefers-color-scheme: dark) {
-  .weekly-usage {
-    --within: #72b8f2;
-    --over: #aa97ed;
-  }
-}
 .week-navigation { margin-bottom: 0.9rem; }
 .week-range { margin: 0; text-align: center; font-weight: 600; }
 .week-arrow {
@@ -138,9 +128,9 @@ ul.overrides { margin: 0.5rem 0 0; padding-left: 1.25rem; color: var(--muted); f
 }
 .week-summary { align-items: flex-end; flex-wrap: wrap; margin-bottom: 0.85rem; }
 .week-summary p, .week-average, .week-average-value { margin: 0; }
-.week-average-label { margin-bottom: 0.2rem; font-size: 1.25rem; font-weight: 600; }
+.week-average-label { margin-bottom: 0.2rem; color: var(--muted); font-size: 0.9rem; font-weight: 600; }
 .week-average-value {
-  font-size: clamp(2.5rem, 6vw, 3.5rem);
+  font-size: clamp(1.875rem, 4.5vw, 2.625rem);
   line-height: 1.05;
   font-weight: 700;
   letter-spacing: -0.045em;
@@ -178,7 +168,7 @@ ul.overrides { margin: 0.5rem 0 0; padding-left: 1.25rem; color: var(--muted); f
 .week-bar-fill[data-budget="over"] { background: var(--over); }
 .week-day-label { align-self: end; color: var(--muted); }
 .week-day:hover:not(:disabled) .week-bar-slot,
-.week-day[aria-pressed="true"] .week-bar-slot { box-shadow: inset 0 0 0 1px var(--within); }
+.week-day[aria-pressed="true"] .week-bar-slot { box-shadow: inset 0 0 0 1px var(--muted); }
 .week-day[aria-pressed="true"] .week-day-label { color: var(--fg); font-weight: 700; }
 .week-axis { position: absolute; inset: 0 0 var(--week-day-label-height); pointer-events: none; }
 .week-budget-line { position: absolute; inset-inline: 0; border-top: 1px dashed var(--muted); }

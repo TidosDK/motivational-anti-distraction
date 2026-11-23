@@ -67,8 +67,19 @@ export async function verifyReports(launch = launchBrave, inspect) {
     assert.equal(await page.locator('.week-average-label').textContent(), 'Daily average');
     const average = page.locator('.week-average-value');
     assert.equal(await average.textContent(), '27m');
-    assert.ok(await average.evaluate((el) => parseFloat(getComputedStyle(el).fontSize) >= 40),
-      'the daily average time is visually prominent');
+    const sizes = await average.evaluate((el) => {
+      const label = getComputedStyle(document.querySelector('.week-average-label'));
+      return {
+        value: parseFloat(getComputedStyle(el).fontSize),
+        label: parseFloat(label.fontSize),
+        heading: parseFloat(getComputedStyle(document.querySelector('.history-reports h2')).fontSize),
+        labelColor: label.color,
+        mutedColor: getComputedStyle(document.querySelector('.week-budget')).color,
+      };
+    });
+    assert.ok(sizes.value >= 30 && sizes.value <= 42, 'the average time uses the reduced scale');
+    assert.ok(sizes.label < sizes.heading, 'the average label is smaller than the section heading');
+    assert.equal(sizes.labelColor, sizes.mutedColor);
     const nextWeek = page.getByRole('button', { name: 'Next week' });
     const previousWeek = page.getByRole('button', { name: 'Previous week' });
     assert.ok(await nextWeek.isDisabled());
