@@ -45,8 +45,9 @@ The friction is the feature.
   logged with timestamps. No passes left ⇒ hard block until the day rolls.
 - **Usage stats** — today's per-site meters, budget, and override log. A
   weekly bar chart shows daily usage and a combined-budget reference line.
-  Recent days marks each date as within or over budget using the same
-  current limits as the streaks. Up to 370 recorded days are retained.
+  Red marks days over the combined budget. Recent days also flags site-only
+  overages, and streaks account for both kinds of limits. Up to 370 recorded
+  days are retained.
 - **Toolbar badge** — on sites with their own daily limit, see whichever
   budget will run out first. Minutes include an `m` suffix, and the icon
   turns red at zero. Other tabs show the plain toolbar icon.

@@ -12,14 +12,15 @@ retention, not new tracking.
 
 ## What Changes
 
-- **Weekly usage chart** on the stats page with daily bars, a combined
-  budget line, and day selection. The calendar implementation remains
+- **Weekly usage chart** on the stats page with daily bars colored by
+  combined budget status, a reference line, and day selection. Daily usage
+  is shown in hours and whole minutes. The calendar implementation remains
   available behind a disabled feature flag.
 - **Under-budget Streaks**: current and best run of consecutive usage days
   that stayed inside every budget — a record, not a score: losing a streak
   changes nothing about budgets, passes, or ceremony.
-- **Recent days budget status** shows which dates were within or over
-  budget using the same comparison as the streaks.
+- **Recent days budget status** distinguishes combined-budget overages from
+  site-only overages and days within all limits.
 - **Total Recorded** shows tracked time and override count with the retained
   date range. The Stats footer shows usage days since installation.
 - **Retention raised** from 31 to 370+ usage days (a year of daily records

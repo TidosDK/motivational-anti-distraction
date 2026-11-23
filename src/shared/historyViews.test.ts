@@ -25,9 +25,8 @@ describe('buildHistoryViews', () => {
     const view = buildHistoryViews(history, settings, state, now);
     expect(view.streaks).toEqual({ current: 2, best: 3 });
     expect(view.days.map(({ minutes }) => minutes)).toEqual([10, 0, 0, 61, 25, 20]);
-    expect(view.days[3].exceededBudgets).toEqual(['example.com']);
-    expect(buildStatsView(settings, state, history, now).history[1].exceededBudgets)
-      .toEqual(view.days[3].exceededBudgets);
+    expect(view.days[3].budget).toEqual({ combinedExceeded: false, exceededSites: ['example.com'] });
+    expect(buildStatsView(settings, state, history, now).history[1].budget).toEqual(view.days[3].budget);
 
     const raised = { ...settings, sites: [{ ...settings.sites[0], limitMin: 70 }] };
     expect(buildHistoryViews(history, raised, state, now).streaks).toEqual({ current: 6, best: 6 });
@@ -36,13 +35,13 @@ describe('buildHistoryViews', () => {
   });
 
   it('assigns distinct intensity buckets and counts exact-limit days as within budget', () => {
-    const history: History = Object.fromEntries([0, 15, 30, 45, 60, 61].map((minutes, i) =>
+    const history: History = Object.fromEntries([0, 15, 30, 45, 60, 60.01].map((minutes, i) =>
       [`2026-11-${String(i + 9).padStart(2, '0')}`, record(minutes)],
     ));
     const view = buildHistoryViews(history, { ...settings, combinedBudgetMin: 60 }, today, now);
     expect(view.days.map(({ bucket }) => bucket)).toEqual([0, 1, 2, 3, 4, 5, 0]);
-    expect(view.days[4].exceededBudgets).toEqual([]);
-    expect(view.days[5].exceededBudgets).toEqual(['Combined budget', 'example.com']);
+    expect(view.days[4].budget).toEqual({ combinedExceeded: false, exceededSites: [] });
+    expect(view.days[5].budget).toEqual({ combinedExceeded: true, exceededSites: ['example.com'] });
     expect(view.streaks).toEqual({ current: 1, best: 5 });
   });
 
@@ -81,7 +80,9 @@ describe('buildHistoryViews', () => {
 
     const state = { ...today, perSiteSeconds: { 'example.com': 60 } };
     const first = buildHistoryViews({}, settings, state, now, install);
-    expect(first.days).toEqual([{ key: '2026-11-15', minutes: 1, bucket: 1, exceededBudgets: [] }]);
+    expect(first.days).toEqual([{
+      key: '2026-11-15', minutes: 1, bucket: 1, budget: { combinedExceeded: false, exceededSites: [] },
+    }]);
     expect(first.streaks).toEqual({ current: 1, best: 1 });
   });
 });

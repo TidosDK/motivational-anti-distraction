@@ -1,7 +1,7 @@
 import '../../shared/style.css';
 import { dayIndex, keyAtDayIndex } from '../../shared/dayMath';
 import { chromeKV, loadHistory, loadInstallMeta, loadSettings, loadState, withStorageLock } from '../../shared/storage';
-import { buildHistoryViews, buildStatsView, formatDuration, type HistoryViews, type UsageReportDay } from '../../shared/stats';
+import { buildHistoryViews, buildStatsView, formatDuration, type HistoryViews, type UsageBudgetStatus, type UsageReportDay } from '../../shared/stats';
 import { HISTORY_KEY, META_KEY, SETTINGS_KEY, STATE_KEY } from '../../shared/types';
 
 const stats = document.querySelector<HTMLElement>('#stats')!;
@@ -44,14 +44,21 @@ function minuteLabel(minutes: number): string {
   return `${minutes > 0 && minutes < 0.01 ? '<0.01' : cellMinutes.format(minutes)} min`;
 }
 
-function budgetLabel(overages: string[]): string {
-  return overages.length ? 'Over budget' : 'Within budget';
+function roundedUsage(minutes: number): string {
+  const wholeMinutes = Math.round(minutes);
+  return wholeMinutes > 0 ? formatDuration(wholeMinutes * 60) : '0m';
 }
 
-function budgetStatus(overages: string[]): HTMLElement {
-  const status = el('span', 'budget-status', budgetLabel(overages));
-  status.dataset.budget = overages.length ? 'over' : 'within';
-  status.title = overages.length ? `Exceeded ${overages.join(', ')}` : 'Compared with current budgets';
+function combinedBudgetLabel(exceeded: boolean): string {
+  return exceeded ? 'Over combined budget' : 'Within combined budget';
+}
+
+function budgetStatus({ combinedExceeded, exceededSites }: UsageBudgetStatus): HTMLElement {
+  const kind = combinedExceeded ? 'over' : exceededSites.length > 0 ? 'site' : 'within';
+  const label = kind === 'site' ? 'Site limit exceeded' : combinedBudgetLabel(combinedExceeded);
+  const status = el('span', 'budget-status', label);
+  status.dataset.budget = kind;
+  if (exceededSites.length) status.title = `Exceeded ${exceededSites.join(', ')}`;
   return status;
 }
 
@@ -136,9 +143,9 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement
   plot.append(grid, axis);
 
   const legend = el('div', 'week-legend muted');
-  for (const [budget, label] of [['within', 'Within budget'], ['over', 'Over budget']]) {
-    const entry = el('span', 'week-legend-entry', label);
-    entry.dataset.budget = budget;
+  for (const exceeded of [false, true]) {
+    const entry = el('span', 'week-legend-entry', combinedBudgetLabel(exceeded));
+    entry.dataset.budget = exceeded ? 'over' : 'within';
     legend.append(entry);
   }
   const detail = el('div', 'week-detail');
@@ -162,11 +169,11 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement
       for (const [key, button] of buttons) button.setAttribute('aria-pressed', String(key === day.key));
       detail.replaceChildren(
         el('span', 'week-detail-date', cellDate.format(dateForDay(day.key))),
-        el('strong', undefined, minuteLabel(day.minutes)),
-        budgetStatus(day.exceededBudgets),
+        el('strong', undefined, roundedUsage(day.minutes)),
+        budgetStatus(day.budget),
       );
-      if (day.exceededBudgets.length) {
-        detail.append(el('p', 'muted week-overages', `Exceeded ${day.exceededBudgets.join(', ')}`));
+      if (day.budget.exceededSites.length) {
+        detail.append(el('p', 'muted week-overages', `Exceeded ${day.budget.exceededSites.join(', ')}`));
       }
     }
 
@@ -182,9 +189,9 @@ function renderWeeklyUsage(report: HistoryViews, budgetMin: number): HTMLElement
       if (day) {
         const fill = el('span', 'week-bar-fill');
         fill.style.height = `${day.minutes / scale * 100}%`;
-        fill.dataset.budget = day.exceededBudgets.length ? 'over' : 'within';
+        fill.dataset.budget = day.budget.combinedExceeded ? 'over' : 'within';
         slot.append(fill);
-        button.title = `${cellDate.format(date)} · ${minuteLabel(day.minutes)} · ${budgetLabel(day.exceededBudgets)}`;
+        button.title = `${cellDate.format(date)} · ${roundedUsage(day.minutes)} · ${combinedBudgetLabel(day.budget.combinedExceeded)}`;
         button.setAttribute('aria-label', button.title);
         button.addEventListener('click', () => {
           selectedDay = key;
@@ -355,7 +362,7 @@ function render(): void {
         .map(([d, sec]) => `${d} ${formatDuration(sec)}`);
       row.appendChild(el('div', 'muted history-detail', parts.join(' · ') || 'no usage'));
       const status = el('div', 'history-status');
-      status.append(budgetStatus(day.exceededBudgets));
+      status.append(budgetStatus(day.budget));
       if (day.record.overrides.length > 0) {
         status.append(el('span', 'history-overrides', `${day.record.overrides.length} pass(es) used`));
       }

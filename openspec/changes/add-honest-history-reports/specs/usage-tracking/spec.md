@@ -5,17 +5,19 @@
 ### Requirement: Weekly usage chart
 The stats view SHALL show daily combined usage as bars with a combined-budget
 reference line. It SHALL open on the latest seven usage days and allow
-navigation to older weeks in the retained period. Selecting a day SHALL show
-its date, minutes, and budget status. The chart SHALL include zero-usage days
-inside the retained period and SHALL be informational only.
+navigation to older weeks in the retained period. Bars SHALL use red only when
+actual usage exceeds the combined budget. Selecting a day SHALL show its
+date, usage rounded to whole minutes in hours and minutes, and budget status.
+The chart SHALL include zero-usage days inside the retained period and SHALL
+be informational only.
 
 #### Scenario: Compare a week of usage
 - **WHEN** the user opens Stats with at least seven days in the report
 - **THEN** the latest seven usage days appear as bars with the combined budget marked
 
-#### Scenario: Exact value on demand
+#### Scenario: Usage details on demand
 - **WHEN** the user selects a day in the chart
-- **THEN** the chart shows the date, combined minutes, and any exceeded budgets
+- **THEN** the chart shows the date, rounded combined usage, and any exceeded limits
 
 #### Scenario: Inspect older days
 - **WHEN** retained usage predates the displayed week and the user goes back a week
@@ -54,13 +56,13 @@ the ceremony, in the present or the future.
   day
 
 ### Requirement: Recent days shows daily budget status
-Each row in Recent days SHALL label the day as within budget or over budget
-using the same current combined and per-site limits as the streak calculation.
-The label SHALL be readable without relying on color.
+Each row in Recent days SHALL distinguish between days within all limits,
+days over the combined budget, and days over a site limit only. Only combined
+budget overages SHALL use red. The label SHALL be readable without relying on color.
 
 #### Scenario: An individual site exceeded its limit
 - **WHEN** a recorded day exceeded a site limit while staying within the combined budget
-- **THEN** its Recent days row is marked over budget and names the exceeded site on inspection
+- **THEN** its Recent days row shows a neutral site-limit label and names the site on inspection
 
 ### Requirement: Lifetime totals
 The stats view SHALL show total tracked time and total override ceremonies

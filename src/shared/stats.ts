@@ -13,6 +13,11 @@ export interface SiteUsageRow {
   passActive: boolean;
 }
 
+export interface UsageBudgetStatus {
+  combinedExceeded: boolean;
+  exceededSites: string[];
+}
+
 export interface StatsView {
   today: {
     dayStartLabel: string;
@@ -24,7 +29,7 @@ export interface StatsView {
     overrides: OverrideEntry[];
   };
   /** Recent closed days, newest first. */
-  history: Array<{ key: string; record: DayRecord; exceededBudgets: string[] }>;
+  history: Array<{ key: string; record: DayRecord; budget: UsageBudgetStatus }>;
 }
 
 const fmtClock = (ts: number): string =>
@@ -45,12 +50,12 @@ export function formatDuration(sec: number): string {
   return `${s}s`;
 }
 
-function exceededBudgets(settings: Settings, record: DayRecord): string[] {
-  const exceeded = record.totalSec > settings.combinedBudgetMin * 60 ? ['Combined budget'] : [];
+function getUsageBudgetStatus(settings: Settings, record: DayRecord): UsageBudgetStatus {
+  const exceededSites: string[] = [];
   for (const { domain, limitMin } of settings.sites) {
-    if (limitMin != null && (record.perSite[domain] ?? 0) > limitMin * 60) exceeded.push(domain);
+    if (limitMin != null && (record.perSite[domain] ?? 0) > limitMin * 60) exceededSites.push(domain);
   }
-  return exceeded;
+  return { combinedExceeded: record.totalSec > settings.combinedBudgetMin * 60, exceededSites };
 }
 
 /**
@@ -103,7 +108,7 @@ export function buildStatsView(
   const historyDays = Object.entries(history)
     .filter(([key]) => key !== todayKey)
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([key, record]) => ({ key, record, exceededBudgets: exceededBudgets(settings, record) }));
+    .map(([key, record]) => ({ key, record, budget: getUsageBudgetStatus(settings, record) }));
 
   const todayOverrides: OverrideEntry[] = [...(history[todayKey]?.overrides ?? [])];
 
@@ -125,7 +130,7 @@ export interface UsageReportDay {
   key: string;
   minutes: number;
   bucket: number;
-  exceededBudgets: string[];
+  budget: UsageBudgetStatus;
 }
 
 export interface HistoryViews {
@@ -186,12 +191,12 @@ export function buildHistoryViews(
     const record = records.get(index);
     const seconds = record?.totalSec ?? 0;
     const bucket = seconds > 0 ? Math.min(5, Math.ceil(4 * seconds / combinedLimitSec)) : 0;
-    const overages = record ? exceededBudgets(settings, record) : [];
-    days.push({ key: keyAtDayIndex(index), minutes: seconds / 60, bucket, exceededBudgets: overages });
+    const budget = record ? getUsageBudgetStatus(settings, record) : { combinedExceeded: false, exceededSites: [] };
+    days.push({ key: keyAtDayIndex(index), minutes: seconds / 60, bucket, budget });
 
     trackedSec += seconds;
     overrideCount += record?.overrides.length ?? 0;
-    current = overages.length === 0 ? current + 1 : 0;
+    current = budget.combinedExceeded || budget.exceededSites.length > 0 ? 0 : current + 1;
     best = Math.max(best, current);
   }
 

@@ -102,6 +102,10 @@ ul.overrides { margin: 0.5rem 0 0; padding-left: 1.25rem; color: var(--muted); f
   color: var(--over);
   background: color-mix(in srgb, var(--bg), var(--over) 13%);
 }
+.budget-status[data-budget="site"] {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--bg), var(--muted) 10%);
+}
 @media (max-width: 560px) {
   .history-row { grid-template-columns: minmax(0, 1fr) auto; gap: 0.35rem 0.65rem; }
   .history-detail { grid-column: 1 / -1; }
@@ -114,7 +118,7 @@ ul.overrides { margin: 0.5rem 0 0; padding-left: 1.25rem; color: var(--muted); f
   gap: 0.65rem;
 }
 .week-navigation { margin-bottom: 0.9rem; }
-.week-range { margin: 0; text-align: center; font-weight: 600; }
+.week-range { margin: 0; text-align: center; font-size: 1.0625rem; font-weight: 600; }
 .week-arrow {
   flex: none;
   min-width: 2.25rem;

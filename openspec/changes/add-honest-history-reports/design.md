@@ -54,17 +54,19 @@ it survives history pruning.
 budget, counted from the first recorded usage day; days with no record
 inside that span count as inside-budget (zero usage). Judged against
 current settings, so raising or lowering a budget re-scores history. The
-**Under-budget Streaks** value explains that comparison in its tooltip. Recent
-days and the chart use the same comparison and can name the budgets a day exceeded.
+**Under-budget Streaks** value explains that comparison in its tooltip.
+Recent days and the chart can name the sites that exceeded their limits.
 
 ### D5: Weekly bars with the budget as a reference
 Show the latest seven usage days, with earlier weeks available through
-arrow buttons. The daily average includes quiet days in the displayed span
-and uses a gray label below the heading in the typographic hierarchy.
+arrow buttons and an enlarged date range between them. The daily average
+includes quiet days in the displayed span and uses a smaller, gray label.
 Bar height represents combined minutes. The reference line marks the
-combined budget. A legend identifies green bars for within-budget days and
-red bars for days that exceeded a site limit or the combined budget. The
-calendar implementation remains a disabled display mode using the same daily data.
+combined budget. Red bars indicate that actual usage exceeded the combined
+budget. Green bars include days that only exceeded a site limit. Selected-day
+usage is rounded to whole minutes and shown in hours and minutes. The day
+details and Recent days show a gray status label for site-only overages. The calendar
+implementation remains a disabled display mode using the same daily data.
 
 ## Risks / Trade-offs
 

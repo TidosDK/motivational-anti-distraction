@@ -22,6 +22,7 @@
 - [x] 4.3 Make Daily average the prominent figure and use blue and violet bars with a legend. Verify the chart in light and dark layouts.
 - [x] 4.4 Use teal for within-budget days and red for over-budget days. Make the Daily average label smaller and gray, and reduce the time value by 25%.
 - [x] 4.5 Shift within-budget styling toward green. Rename Under-budget Streaks and remove its subtitle. Show the usage, override count, and date range under Total Recorded, with install age in the Stats footer. Verify the revised layout and live updates.
+- [x] 4.6 Enlarge the weekly date range and round selected-day usage to whole minutes in hours and minutes. Reserve red for combined-budget overages in the chart and Recent days. Verify site-only overages, rounding, and live updates.
 
 ## Workflow follow-up
 
